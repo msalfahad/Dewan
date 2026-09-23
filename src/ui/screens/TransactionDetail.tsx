@@ -9,7 +9,7 @@ import { categoryName } from '../../domain/categories';
 import { formatDateTime } from '../../i18n/translate';
 import { useI18n } from '../../i18n/I18nProvider';
 import { BottomSheet } from '../components/BottomSheet';
-import { Money, StatusBadge } from '../components/common';
+import { ConfirmPanel, Money, StatusBadge } from '../components/common';
 import { Icon } from '../components/Icon';
 
 /** Full record view with the balance after this transaction, plus edit / delete / mark-paid. */
@@ -17,6 +17,7 @@ export function TransactionDetail({ row, onClose, onEdit, onToast }: { row: Ledg
   const { t, lang, longDate, month } = useI18n();
   const { repo, categoriesById, today, openingBalance } = useAppData();
   const [paying, setPaying] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [payDate, setPayDate] = useState(today);
   const [payMethod, setPayMethod] = useState<PaymentMethod>('cash');
   const tx = row.transaction;
@@ -53,15 +54,22 @@ export function TransactionDetail({ row, onClose, onEdit, onToast }: { row: Ledg
   const unapplied = !row.applied;
   const methods = tx.transactionType === 'inflow' ? INFLOW_PAYMENT_METHODS : OUTFLOW_PAYMENT_METHODS;
 
-  const remove = async () => {
-    if (!window.confirm(t('common.confirmDelete'))) return;
-    await repo.deleteTransaction(tx.id);
+  // Writes apply to the local cache (and the ledger) immediately; the server sync finishes in the
+  // background, so the sheet closes at once even on a slow connection. Failures are reported.
+  const remove = () => {
+    repo.deleteTransaction(tx.id).catch((e) => {
+      console.error(e);
+      onToast(t('common.error'));
+    });
     onToast(t('common.deleted'));
     onClose();
   };
 
-  const confirmPaid = async () => {
-    await repo.saveTransaction(markAsPaid(tx, payDate, payMethod));
+  const confirmPaid = () => {
+    repo.saveTransaction(markAsPaid(tx, payDate, payMethod)).catch((e) => {
+      console.error(e);
+      onToast(t('common.error'));
+    });
     onToast(t('common.saved'));
     onClose();
   };
@@ -146,7 +154,7 @@ export function TransactionDetail({ row, onClose, onEdit, onToast }: { row: Ledg
             </label>
           </div>
           <div className="row">
-            <button type="button" className="btn primary" onClick={() => void confirmPaid()} disabled={!payDate}>
+            <button type="button" className="btn primary" onClick={confirmPaid} disabled={!payDate}>
               <Icon name="check" size={18} /> {t('common.confirm')}
             </button>
             <button type="button" className="btn ghost" onClick={() => setPaying(false)}>
@@ -154,6 +162,8 @@ export function TransactionDetail({ row, onClose, onEdit, onToast }: { row: Ledg
             </button>
           </div>
         </div>
+      ) : confirmingDelete ? (
+        <ConfirmPanel message={t('common.confirmDelete')} confirmLabel={t('common.delete')} onConfirm={remove} onCancel={() => setConfirmingDelete(false)} />
       ) : (
         <div className="row" style={{ marginTop: 16 }}>
           {unapplied && (
@@ -164,7 +174,7 @@ export function TransactionDetail({ row, onClose, onEdit, onToast }: { row: Ledg
           <button type="button" className="btn" onClick={onEdit}>
             <Icon name="edit" size={18} /> {t('common.edit')}
           </button>
-          <button type="button" className="btn danger" onClick={() => void remove()}>
+          <button type="button" className="btn danger" onClick={() => setConfirmingDelete(true)}>
             <Icon name="trash" size={18} /> {t('common.delete')}
           </button>
         </div>

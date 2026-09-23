@@ -349,3 +349,5 @@ table.r-table td .l2 { display: block; color: #5b6475; }
   body.printing-report .app > :not(.sheet-backdrop) { display: none !important; }
 }
 .tabs button, .segmented button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.confirm-panel { margin-top: 14px; padding: 14px; border-radius: 14px; background: var(--coral-soft); border: 1px solid rgba(222, 107, 112, 0.55); }
+.confirm-panel p { margin: 0 0 12px; color: var(--text); font-weight: 700; }
