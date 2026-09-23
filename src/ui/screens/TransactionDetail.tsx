@@ -125,7 +125,7 @@ export function TransactionDetail({ row, onClose, onEdit, onToast, mode = 'view'
           <span className={`badge ${tx.transactionType}`}>{t(`types.${tx.transactionType}`)}</span> <StatusBadge status={row.status} />
         </dd>
         <dt>{t('ledger.amount')}</dt>
-        <dd className={tx.transactionType === 'inflow' ? 'gold' : 'coral'}>
+        <dd className={tx.transactionType === 'inflow' ? 'pos' : 'coral'}>
           <Money fils={tx.amountFils} />
         </dd>
         <dt>{t('columns.date')}</dt>

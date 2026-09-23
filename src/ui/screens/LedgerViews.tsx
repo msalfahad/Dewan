@@ -80,7 +80,7 @@ export function LedgerTable({ rows, onOpen }: { rows: LedgerRow[]; onOpen: (row:
                 </td>
                 <td>{x.counterparty}</td>
                 <td>{x.method}</td>
-                <td className="amount gold">
+                <td className="amount pos">
                   <span className="num">{row.inflowFils ? formatAmount(row.inflowFils) : '—'}</span>
                 </td>
                 <td className={`amount ${row.applied ? 'coral' : 'amber'}`}>
@@ -133,7 +133,7 @@ export function LedgerList({ rows, onOpen }: { rows: LedgerRow[]; onOpen: (row: 
               </span>
             </span>
             <span className="side">
-              <span className={`amt num ${!row.applied ? 'amber' : isIn ? 'gold' : 'coral'}`} style={{ display: 'block' }}>
+              <span className={`amt num ${!row.applied ? 'amber' : isIn ? 'pos' : 'coral'}`} style={{ display: 'block' }}>
                 {isIn ? '+' : '−'}
                 {formatAmount(amount)}
               </span>

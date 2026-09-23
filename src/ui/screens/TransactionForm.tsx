@@ -46,7 +46,6 @@ export function TransactionForm({ existing, initialType = 'outflow', onClose, on
   const [notes, setNotes] = useState(existing?.notes ?? '');
   const [salaryMonth, setSalaryMonth] = useState(existing?.salaryMonth ?? monthKeyOf(today));
   const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const kindCategories = useMemo(() => categoriesOfKind(categories, type), [categories, type]);
@@ -88,7 +87,7 @@ export function TransactionForm({ existing, initialType = 'outflow', onClose, on
             ? t('add.shop')
             : t('add.paidTo');
 
-  const submit = async (e: FormEvent) => {
+  const submit = (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     const fils = parseKwdToFils(amount);
@@ -120,15 +119,17 @@ export function TransactionForm({ existing, initialType = 'outflow', onClose, on
     };
     try {
       const tx = existing ? updateTransaction(existing, input) : createTransaction(input, repo.userId, Date.now(), newId());
-      setSaving(true);
-      await repo.saveTransaction(tx);
+      // Local-first: the entry shows in the ledger at once and syncs to Firebase in the background,
+      // so Save never hangs on a slow connection. A failed sync is reported.
+      repo.saveTransaction(tx).catch((err) => {
+        console.error(err);
+        onSaved(t('common.error'));
+      });
       onSaved(t('common.saved'));
       onClose();
     } catch (err) {
       const key = err instanceof Error ? err.message : '';
       setError(['amount', 'date', 'description', 'category', 'status'].includes(key) ? t(`add.errors.${key}`) : t('common.error'));
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -249,7 +250,7 @@ export function TransactionForm({ existing, initialType = 'outflow', onClose, on
           </div>
         )}
         <div className="row">
-          <button type="submit" className="btn primary" disabled={saving}>
+          <button type="submit" className="btn primary">
             <Icon name="check" size={18} /> {t('common.save')}
           </button>
           <button type="button" className="btn ghost" onClick={onClose}>

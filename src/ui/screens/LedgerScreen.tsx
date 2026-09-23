@@ -50,7 +50,7 @@ export function LedgerScreen({ filter, onFilter, onOpen, onAdd }: { filter: Ledg
         <div className="totals-strip" aria-label={t('filters.active')}>
           <div>
             <span>{t('ledger.filteredInflow')}</span>
-            <b className="gold">
+            <b className="pos">
               <Money fils={totals.inflowFils} />
             </b>
           </div>

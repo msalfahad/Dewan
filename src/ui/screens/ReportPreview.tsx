@@ -7,7 +7,7 @@ import { formatAmount, formatShare, shareTenthsOfPercent } from '../../domain/mo
 import type { ReportModel, Tone } from '../../pdf/reportModel';
 import { Icon } from '../components/Icon';
 
-const TONE: Record<Tone, string> = { gold: '#9A7A45', coral: '#D9534A', amber: '#C98A12', navy: '#0B1428', blue: '#5F7899' };
+const TONE: Record<Tone, string> = { gold: '#9A7A45', green: '#1E9E5A', coral: '#D9534A', amber: '#C98A12', navy: '#0B1428', blue: '#5F7899' };
 const DONUT = ['#3F6AA8', '#D9534A', '#B8955A', '#D4B483', '#A3AAB5', '#8C7A5B', '#7D8BA3', '#C98A12'];
 
 function PeriodBars({ model }: { model: ReportModel }) {
@@ -35,7 +35,7 @@ function PeriodBars({ model }: { model: ReportModel }) {
       {months.map((m, i) => {
         const cx = x0 + i * slot + slot / 2;
         const vals = [
-          [m.inflowFils, '#B8955A'],
+          [m.inflowFils, '#1E9E5A'],
           [m.outflowFils, '#D9534A'],
           ...(hasDue ? [[m.dueFils, '#C98A12']] : []),
         ] as [number, string][];
@@ -121,7 +121,7 @@ function Trend({ model }: { model: ReportModel }) {
 
 function InOut({ model }: { model: ReportModel }) {
   const bars = [
-    { label: model.labels.inflow, v: model.charts.inflowFils, c: '#B8955A' },
+    { label: model.labels.inflow, v: model.charts.inflowFils, c: '#1E9E5A' },
     { label: model.labels.outflow, v: model.charts.outflowFils, c: '#D9534A' },
     { label: model.labels.due, v: model.charts.dueFils, c: '#C98A12' },
   ];
@@ -177,12 +177,12 @@ export function ReportPreview({ model }: { model: ReportModel }) {
       <div className="r-body">
         <div className="r-stats">
           {model.headline.map((s) => (
-            <div key={s.label} className={s.tone === 'coral' ? 'coral' : 'gold'} style={{ ['--tone' as string]: s.tone === 'navy' ? '#0B1428' : TONE[s.tone] }}>
+            <div key={s.label} className={s.tone === 'coral' ? 'coral' : s.tone === 'green' ? 'green' : 'gold'} style={{ ['--tone' as string]: s.tone === 'navy' ? '#0B1428' : TONE[s.tone] }}>
               <span style={{ flex: 1 }}>
                 <span>{s.label}</span>
                 <b className="num">{s.value}</b>
               </span>
-              <span style={{ color: s.tone === 'coral' ? '#D9534A' : '#B8955A' }}>
+              <span style={{ color: s.tone === 'coral' ? '#D9534A' : s.tone === 'green' ? '#1E9E5A' : '#B8955A' }}>
                 <Icon name={s.icon} size={26} />
               </span>
             </div>
@@ -204,7 +204,7 @@ export function ReportPreview({ model }: { model: ReportModel }) {
             <b>{model.labels.periodChart}</b>
             <div className="r-legend">
               <span>
-                <i style={{ background: '#B8955A' }} />
+                <i style={{ background: '#1E9E5A' }} />
                 {model.labels.inflow}
               </span>
               <span>
