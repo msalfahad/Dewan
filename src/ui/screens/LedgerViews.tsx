@@ -8,6 +8,8 @@ import { describe, txCategory } from '../../domain/text';
 import { useI18n } from '../../i18n/I18nProvider';
 import { StatusBadge } from '../components/common';
 import { Icon } from '../components/Icon';
+import { RowActionButtons, RowActionsContext } from '../components/RowActions';
+import { useContext } from 'react';
 
 function useRowText() {
   const { t, lang } = useI18n();
@@ -38,6 +40,7 @@ function useRowText() {
 
 export function LedgerTable({ rows, onOpen }: { rows: LedgerRow[]; onOpen: (row: LedgerRow) => void }) {
   const { t } = useI18n();
+  const withActions = useContext(RowActionsContext) !== null;
   const text = useRowText();
   return (
     <div className="ledger-table-wrap">
@@ -51,6 +54,11 @@ export function LedgerTable({ rows, onOpen }: { rows: LedgerRow[]; onOpen: (row:
             <th>{t('columns.paymentMethod')}</th>
             <th className="amount">{t('columns.inflow')}</th>
             <th className="amount">{t('columns.outflow')}</th>
+            {withActions && (
+              <th>
+                <span className="sr-only">{t('common.edit')}</span>
+              </th>
+            )}
             <th className="balance-col">{t('columns.balance')}</th>
           </tr>
         </thead>
@@ -78,6 +86,11 @@ export function LedgerTable({ rows, onOpen }: { rows: LedgerRow[]; onOpen: (row:
                 <td className={`amount ${row.applied ? 'coral' : 'amber'}`}>
                   <span className="num">{row.outflowFils ? formatAmount(row.outflowFils) : '—'}</span>
                 </td>
+                {withActions && (
+                  <td className="actions-col">
+                    <RowActionButtons row={row} compact />
+                  </td>
+                )}
                 <td className="balance-col">
                   <span className="num" data-testid="row-balance">
                     {formatAmount(row.balanceAfterFils)}
@@ -102,7 +115,8 @@ export function LedgerList({ rows, onOpen }: { rows: LedgerRow[]; onOpen: (row: 
         const isIn = row.inflowFils > 0;
         const amount = isIn ? row.inflowFils : row.outflowFils;
         return (
-          <button type="button" key={row.key} className={`ledger-item ${row.kind === 'opening' ? 'opening' : ''}`} onClick={() => onOpen(row)}>
+          <div key={row.key} className={`ledger-entry ${row.kind === 'opening' ? 'opening' : ''}`}>
+            <button type="button" className={`ledger-item ${row.kind === 'opening' ? 'opening' : ''}`} onClick={() => onOpen(row)}>
             <span className={`dot ${!row.applied ? 'unapplied' : isIn ? 'inflow' : 'outflow'}`}>
               <Icon name={isIn ? 'arrowIn' : 'arrowOut'} size={18} />
             </span>
@@ -127,7 +141,9 @@ export function LedgerList({ rows, onOpen }: { rows: LedgerRow[]; onOpen: (row: 
                 {t('columns.balance')}: <b className="num">{money(row.balanceAfterFils)}</b>
               </span>
             </span>
-          </button>
+            </button>
+            <RowActionButtons row={row} />
+          </div>
         );
       })}
     </div>

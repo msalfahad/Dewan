@@ -351,3 +351,15 @@ table.r-table td .l2 { display: block; color: #5b6475; }
 .tabs button, .segmented button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .confirm-panel { margin-top: 14px; padding: 14px; border-radius: 14px; background: var(--coral-soft); border: 1px solid rgba(222, 107, 112, 0.55); }
 .confirm-panel p { margin: 0 0 12px; color: var(--text); font-weight: 700; }
+
+/* Edit / delete on every row */
+.tx-item, .ledger-entry { border-radius: 14px; background: linear-gradient(180deg, var(--card-2), var(--card)); border: 1px solid var(--line); overflow: hidden; }
+.ledger-entry.opening { border-color: rgba(210, 173, 104, 0.5); }
+.tx-item .tx-card, .ledger-entry .ledger-item { border: 0; background: none; border-radius: 0; }
+.row-actions { display: flex; gap: 8px; justify-content: flex-end; padding: 0 12px 10px; }
+.row-actions .act { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 5px 12px; border-radius: 10px; font-size: 0.82rem; border: 1px solid var(--line); background: var(--card); color: var(--text); }
+.row-actions .act.edit { border-color: var(--btn-border); background: var(--btn); }
+.row-actions .act.delete { color: var(--coral); border-color: rgba(222, 107, 112, 0.5); background: var(--coral-soft); }
+.row-actions.compact { padding: 0; justify-content: center; }
+.row-actions.compact .act { padding: 5px 8px; }
+table.ledger td.actions-col { white-space: nowrap; }

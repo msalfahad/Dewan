@@ -11,6 +11,7 @@ import { BottomSheet } from '../components/BottomSheet';
 import { Icon } from '../components/Icon';
 import { CategoryEditor } from './CategoryEditor';
 import { CategoryIcon } from '../components/CategoryIcon';
+import { ConfirmPanel } from '../components/common';
 
 type OutflowTab = 'salary' | 'maintenance' | 'groceries' | 'other' | 'new';
 
@@ -46,6 +47,7 @@ export function TransactionForm({ existing, initialType = 'outflow', onClose, on
   const [salaryMonth, setSalaryMonth] = useState(existing?.salaryMonth ?? monthKeyOf(today));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const kindCategories = useMemo(() => categoriesOfKind(categories, type), [categories, type]);
   const methods = type === 'inflow' ? INFLOW_PAYMENT_METHODS : OUTFLOW_PAYMENT_METHODS;
@@ -253,7 +255,27 @@ export function TransactionForm({ existing, initialType = 'outflow', onClose, on
           <button type="button" className="btn ghost" onClick={onClose}>
             {t('common.cancel')}
           </button>
+          {existing && !confirmingDelete && (
+            <button type="button" className="btn danger" onClick={() => setConfirmingDelete(true)}>
+              <Icon name="trash" size={18} /> {t('common.delete')}
+            </button>
+          )}
         </div>
+        {existing && confirmingDelete && (
+          <ConfirmPanel
+            message={t('common.confirmDelete')}
+            confirmLabel={t('common.delete')}
+            onConfirm={() => {
+              repo.deleteTransaction(existing.id).catch((e) => {
+                console.error(e);
+                onSaved(t('common.error'));
+              });
+              onSaved(t('common.deleted'));
+              onClose();
+            }}
+            onCancel={() => setConfirmingDelete(false)}
+          />
+        )}
       </form>
     </BottomSheet>
   );

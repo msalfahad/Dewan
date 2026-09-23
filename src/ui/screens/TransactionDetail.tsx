@@ -11,18 +11,42 @@ import { useI18n } from '../../i18n/I18nProvider';
 import { BottomSheet } from '../components/BottomSheet';
 import { ConfirmPanel, Money, StatusBadge } from '../components/common';
 import { Icon } from '../components/Icon';
+import { OpeningBalanceForm } from './OpeningBalanceForm';
 
 /** Full record view with the balance after this transaction, plus edit / delete / mark-paid. */
-export function TransactionDetail({ row, onClose, onEdit, onToast }: { row: LedgerRow; onClose: () => void; onEdit: () => void; onToast: (m: string) => void }) {
+export type DetailMode = 'view' | 'edit' | 'delete';
+
+export function TransactionDetail({ row, onClose, onEdit, onToast, mode = 'view' }: { row: LedgerRow; onClose: () => void; onEdit: () => void; onToast: (m: string) => void; mode?: DetailMode }) {
   const { t, lang, longDate, month } = useI18n();
   const { repo, categoriesById, today, openingBalance } = useAppData();
   const [paying, setPaying] = useState(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(mode === 'delete');
+  const [editingOpening, setEditingOpening] = useState(mode === 'edit');
   const [payDate, setPayDate] = useState(today);
   const [payMethod, setPayMethod] = useState<PaymentMethod>('cash');
   const tx = row.transaction;
 
   if (row.kind === 'opening' || !tx) {
+    const removeOpening = () => {
+      repo.saveOpeningBalance(null).catch((e) => {
+        console.error(e);
+        onToast(t('common.error'));
+      });
+      onToast(t('common.deleted'));
+      onClose();
+    };
+    if (editingOpening) {
+      return (
+        <BottomSheet title={t('opening.title')} onClose={onClose}>
+          <OpeningBalanceForm
+            onSaved={(m) => {
+              onToast(m);
+              onClose();
+            }}
+          />
+        </BottomSheet>
+      );
+    }
     return (
       <BottomSheet title={t('opening.title')} onClose={onClose}>
         <div className="balance-callout">
@@ -46,6 +70,18 @@ export function TransactionDetail({ row, onClose, onEdit, onToast }: { row: Ledg
           )}
         </dl>
         <p className="muted">{t('opening.hint')}</p>
+        {confirmingDelete ? (
+          <ConfirmPanel message={t('opening.deleteConfirm')} confirmLabel={t('common.delete')} onConfirm={removeOpening} onCancel={() => setConfirmingDelete(false)} />
+        ) : (
+          <div className="row" style={{ marginTop: 16 }}>
+            <button type="button" className="btn" onClick={() => setEditingOpening(true)}>
+              <Icon name="edit" size={18} /> {t('common.edit')}
+            </button>
+            <button type="button" className="btn danger" onClick={() => setConfirmingDelete(true)}>
+              <Icon name="trash" size={18} /> {t('common.delete')}
+            </button>
+          </div>
+        )}
       </BottomSheet>
     );
   }

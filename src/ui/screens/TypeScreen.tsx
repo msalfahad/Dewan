@@ -12,6 +12,7 @@ import { useI18n } from '../../i18n/I18nProvider';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { EmptyState, Money, Stat, StatusBadge } from '../components/common';
 import { Icon } from '../components/Icon';
+import { RowActionButtons } from '../components/RowActions';
 
 type Pill = 'all' | EffectiveStatus;
 
@@ -27,30 +28,33 @@ export function TxCard({ row, onOpen }: { row: LedgerRow; onOpen: (r: LedgerRow)
   const cat = categoriesById.get(tx.categoryId);
   const isIn = tx.transactionType === 'inflow';
   return (
-    <button type="button" className="tx-card" onClick={() => onOpen(row)}>
-      <span className="tile">
-        <CategoryIcon id={tx.categoryId} icon={cat?.icon} />
-      </span>
-      <span style={{ minWidth: 0 }}>
-        <span className="title" style={{ display: 'block' }}>
-          {describe(tx, lang)}
+    <div className="tx-item">
+      <button type="button" className="tx-card" onClick={() => onOpen(row)}>
+        <span className="tile">
+          <CategoryIcon id={tx.categoryId} icon={cat?.icon} />
         </span>
-        <span className="meta">
-          <span className="num">{formatDateDMY(tx.date)}</span>
-          {tx.counterparty && <span>{tx.counterparty}</span>}
-          <StatusBadge status={row.status} />
+        <span style={{ minWidth: 0 }}>
+          <span className="title" style={{ display: 'block' }}>
+            {describe(tx, lang)}
+          </span>
+          <span className="meta">
+            <span className="num">{formatDateDMY(tx.date)}</span>
+            {tx.counterparty && <span>{tx.counterparty}</span>}
+            <StatusBadge status={row.status} />
+          </span>
         </span>
-      </span>
-      <span className={`amount ${isIn ? 'in' : 'out'}`}>
-        <Money fils={tx.amountFils} />
-        <span className="bal">
-          {t('columns.balance')}: <Money fils={row.balanceAfterFils} />
+        <span className={`amount ${isIn ? 'in' : 'out'}`}>
+          <Money fils={tx.amountFils} />
+          <span className="bal">
+            {t('columns.balance')}: <Money fils={row.balanceAfterFils} />
+          </span>
         </span>
-      </span>
-      <span className="chev">
-        <Icon name="next" size={18} />
-      </span>
-    </button>
+        <span className="chev">
+          <Icon name="next" size={18} />
+        </span>
+      </button>
+      <RowActionButtons row={row} />
+    </div>
   );
 }
 

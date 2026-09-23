@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAppData } from '../data/AppDataProvider';
 import { monthKeyOf } from '../domain/dates';
 import { demoData } from '../domain/demo';
@@ -13,7 +13,8 @@ import { LedgerScreen } from './screens/LedgerScreen';
 import { RecurringScreen } from './screens/RecurringScreen';
 import { ReportsScreen } from './screens/ReportsScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
-import { TransactionDetail } from './screens/TransactionDetail';
+import { TransactionDetail, type DetailMode } from './screens/TransactionDetail';
+import { RowActionsContext, type RowActionHandlers } from './components/RowActions';
 import { TransactionForm } from './screens/TransactionForm';
 import { TypeScreen } from './screens/TypeScreen';
 
@@ -49,6 +50,7 @@ export function Shell({ account, onSignOut }: { account: string | null; onSignOu
   const [month, setMonth] = useState(monthKeyOf(today));
   const [filter, setFilter] = useState<LedgerFilter>(EMPTY_FILTER);
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const [openMode, setOpenMode] = useState<DetailMode>('view');
   const [editing, setEditing] = useState<{ tx?: Transaction; type: TransactionType } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -60,7 +62,28 @@ export function Shell({ account, onSignOut }: { account: string | null; onSignOu
 
   // Resolve the open row from the live ledger so its balance updates after edits.
   const openRow = openKey ? (ledger.rows.find((r) => r.key === openKey) ?? null) : null;
-  const open = useCallback((r: LedgerRow) => setOpenKey(r.key), []);
+  const open = useCallback((r: LedgerRow) => {
+    setOpenMode('view');
+    setOpenKey(r.key);
+  }, []);
+  // ✏️ / 🗑 on every row: edit opens the form (the opening balance edits in its sheet);
+  // delete opens the record with the in-app confirmation already showing.
+  const rowActions = useMemo<RowActionHandlers>(
+    () => ({
+      edit: (r) => {
+        if (r.transaction) setEditing({ tx: r.transaction, type: r.transaction.transactionType });
+        else {
+          setOpenMode('edit');
+          setOpenKey(r.key);
+        }
+      },
+      remove: (r) => {
+        setOpenMode('delete');
+        setOpenKey(r.key);
+      },
+    }),
+    [],
+  );
 
   const go = (next: Tab) => {
     setTab(next);
@@ -78,76 +101,90 @@ export function Shell({ account, onSignOut }: { account: string | null; onSignOu
   const showMonth = tab === 'home' || tab === 'family' || tab === 'expenses';
 
   return (
-    <div className="app">
-      <header className="topbar no-print">
-        <button type="button" className="icon-plain" onClick={() => go('home')} aria-label={t('nav.dashboard')}>
-          <Icon name="home" size={24} />
-        </button>
-        <div className="title">
-          <h1>{t(TITLE_KEY[tab])}</h1>
-          {showMonth && <MonthDrop month={month} onChange={setMonth} />}
-        </div>
-        <button type="button" className="icon-plain end" onClick={() => go('settings')} aria-label={t('nav.settings')} aria-current={tab === 'settings' ? 'page' : undefined}>
-          <Icon name="settings" size={22} />
-        </button>
-      </header>
+    <RowActionsContext.Provider value={rowActions}>
+      <div className="app">
+        <header className="topbar no-print">
+          <button type="button" className="icon-plain" onClick={() => go('home')} aria-label={t('nav.dashboard')}>
+            <Icon name="home" size={24} />
+          </button>
+          <div className="title">
+            <h1>{t(TITLE_KEY[tab])}</h1>
+            {showMonth && <MonthDrop month={month} onChange={setMonth} />}
+          </div>
+          <button type="button" className="icon-plain end" onClick={() => go('settings')} aria-label={t('nav.settings')} aria-current={tab === 'settings' ? 'page' : undefined}>
+            <Icon name="settings" size={22} />
+          </button>
+        </header>
 
-      {!ready ? (
-        <p className="muted">{t('common.loading')}</p>
-      ) : (
-        <main>
-          {tab === 'home' && (
-            <Dashboard
-              month={month}
-              onOpen={open}
-              onAdd={() => setEditing({ type: 'outflow' })}
-              onViewLedger={() => go('ledger')}
-              onLoadDemo={() => void repo.replaceAll(demoData(repo.userId))}
-            />
-          )}
-          {tab === 'ledger' && <LedgerScreen filter={filter} onFilter={setFilter} onOpen={open} onAdd={() => setEditing({ type: 'outflow' })} />}
-          {tab === 'family' && <TypeScreen type="inflow" month={month} onOpen={open} onAdd={() => setEditing({ type: 'inflow' })} />}
-          {tab === 'expenses' && <TypeScreen type="outflow" month={month} onOpen={open} onAdd={() => setEditing({ type: 'outflow' })} />}
-          {tab === 'reports' && <ReportsScreen initialMonth={month} />}
-          {tab === 'settings' && settingsPage === 'main' && (
-            <SettingsScreen
-              account={account}
-              onSignOut={onSignOut}
-              onOpenCategories={() => setSettingsPage('categories')}
-              onOpenRecurring={() => setSettingsPage('recurring')}
-              onToast={setToast}
-            />
-          )}
-          {tab === 'settings' && settingsPage === 'categories' && <CategoriesScreen onBack={() => setSettingsPage('main')} />}
-          {tab === 'settings' && settingsPage === 'recurring' && <RecurringScreen month={month} onBack={() => setSettingsPage('main')} onToast={setToast} />}
-        </main>
-      )}
+        {!ready ? (
+          <p className="muted">{t('common.loading')}</p>
+        ) : (
+          <main>
+            {tab === 'home' && (
+              <Dashboard
+                month={month}
+                onOpen={open}
+                onAdd={() => setEditing({ type: 'outflow' })}
+                onViewLedger={() => go('ledger')}
+                onLoadDemo={() => void repo.replaceAll(demoData(repo.userId))}
+              />
+            )}
+            {tab === 'ledger' && <LedgerScreen filter={filter} onFilter={setFilter} onOpen={open} onAdd={() => setEditing({ type: 'outflow' })} />}
+            {tab === 'family' && <TypeScreen type="inflow" month={month} onOpen={open} onAdd={() => setEditing({ type: 'inflow' })} />}
+            {tab === 'expenses' && <TypeScreen type="outflow" month={month} onOpen={open} onAdd={() => setEditing({ type: 'outflow' })} />}
+            {tab === 'reports' && <ReportsScreen initialMonth={month} />}
+            {tab === 'settings' && settingsPage === 'main' && (
+              <SettingsScreen
+                account={account}
+                onSignOut={onSignOut}
+                onOpenCategories={() => setSettingsPage('categories')}
+                onOpenRecurring={() => setSettingsPage('recurring')}
+                onToast={setToast}
+              />
+            )}
+            {tab === 'settings' && settingsPage === 'categories' && <CategoriesScreen onBack={() => setSettingsPage('main')} />}
+            {tab === 'settings' && settingsPage === 'recurring' && <RecurringScreen month={month} onBack={() => setSettingsPage('main')} onToast={setToast} />}
+          </main>
+        )}
 
-      <nav className="bottom-nav no-print" aria-label={t('app.name')}>
-        <div className="inner">
-          {nav.map((n) => (
-            <button key={n.id} type="button" aria-current={tab === n.id ? 'page' : undefined} onClick={() => go(n.id)}>
-              <Icon name={n.icon} />
-              {n.label}
-            </button>
-          ))}
-        </div>
-      </nav>
+        <nav className="bottom-nav no-print" aria-label={t('app.name')}>
+          <div className="inner">
+            {nav.map((n) => (
+              <button key={n.id} type="button" aria-current={tab === n.id ? 'page' : undefined} onClick={() => go(n.id)}>
+                <Icon name={n.icon} />
+                {n.label}
+              </button>
+            ))}
+          </div>
+        </nav>
 
-      {openRow && !editing && (
-        <TransactionDetail
-          row={openRow}
-          onClose={() => setOpenKey(null)}
-          onEdit={() => openRow.transaction && setEditing({ tx: openRow.transaction, type: openRow.transaction.transactionType })}
-          onToast={setToast}
-        />
-      )}
-      {editing && <TransactionForm existing={editing.tx} initialType={editing.type} onClose={() => setEditing(null)} onSaved={setToast} />}
-      {toast && (
-        <div className="toast" role="status">
-          {toast}
-        </div>
-      )}
-    </div>
+        {openRow && !editing && (
+          <TransactionDetail
+            key={`${openRow.key}-${openMode}`}
+            mode={openMode}
+            row={openRow}
+            onClose={() => setOpenKey(null)}
+            onEdit={() => openRow.transaction && setEditing({ tx: openRow.transaction, type: openRow.transaction.transactionType })}
+            onToast={setToast}
+          />
+        )}
+        {editing && (
+          <TransactionForm
+            existing={editing.tx}
+            initialType={editing.type}
+            onClose={() => {
+              setEditing(null);
+              setOpenKey(null);
+            }}
+            onSaved={setToast}
+          />
+        )}
+        {toast && (
+          <div className="toast" role="status">
+            {toast}
+          </div>
+        )}
+      </div>
+    </RowActionsContext.Provider>
   );
 }
