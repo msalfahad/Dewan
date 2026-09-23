@@ -1,0 +1,37 @@
+name: Deploy to Firebase Hosting
+
+# Publishes حساب الديوان / Diwaniya Account to https://diwanadailiya.web.app
+# Needs the repository secret FIREBASE_SERVICE_ACCOUNT_DIWANADAILIYA
+# (Firebase console → Project settings → Service accounts → Generate new private key).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-hosting
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      # Firebase web config comes from .env.production.
+      - run: npm run build
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DIWANADAILIYA }}
+          projectId: diwanadailiya
+          channelId: live
