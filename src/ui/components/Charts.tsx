@@ -86,7 +86,7 @@ export function BalanceTrendChart({ points }: { points: { label: string; balance
               return p ? `${p.name} — ${p.description}` : '';
             }}
           />
-          <Line type="monotone" dataKey="balance" stroke={CHART.balance} strokeWidth={2.5} dot={{ r: 3, fill: CHART.inflow }} />
+          <Line type="monotone" dataKey="balance" stroke={CHART.balance} strokeWidth={2.5} dot={{ r: 3, fill: CHART.balance }} />
         </LineChart>
       </ResponsiveContainer>
     </div>

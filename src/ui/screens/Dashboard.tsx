@@ -30,7 +30,7 @@ export function RecentList({ rows, onOpen }: { rows: LedgerRow[]; onOpen: (r: Le
               {r.kind === 'opening' ? t('ledger.opening') : describe(r.transaction!, lang)}
               <small className="num">{formatDateDMY(r.date)}</small>
             </span>
-            <span className={`a ${cls === 'out' ? 'coral' : cls === 'in' ? 'gold' : 'amber'}`}>
+            <span className={`a ${cls === 'out' ? 'coral' : cls === 'in' ? 'pos' : 'amber'}`}>
               <Money fils={isIn ? r.inflowFils : r.outflowFils} />
               <small>
                 {t('columns.balance')}: <Money fils={r.balanceAfterFils} />

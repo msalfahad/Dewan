@@ -32,7 +32,7 @@ export function CategoryEditor({ kind, existing, inline = false, onSaved, onCanc
       isDefault: existing?.isDefault ?? false,
       ...(existing?.recordKind ? { recordKind: existing.recordKind } : {}),
     };
-    await repo.saveCategory(category);
+    repo.saveCategory(category).catch((err) => console.error(err));
     onSaved(category);
   };
 

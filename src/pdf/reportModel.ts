@@ -26,7 +26,7 @@ export interface ReportColumn {
   numeric: boolean;
 }
 
-export type Tone = 'gold' | 'coral' | 'amber' | 'navy' | 'blue';
+export type Tone = 'gold' | 'green' | 'coral' | 'amber' | 'navy' | 'blue';
 
 export interface ReportRow {
   kind: 'opening' | 'transaction';
@@ -244,7 +244,7 @@ export function buildReportModel(input: ReportInput): ReportModel {
     title: monthText(language, s.month),
     stats: [
       { label: L('reports.monthOpening'), value: money(language, s.openingFils), tone: 'navy' },
-      { label: L('reports.monthInflow'), value: money(language, s.inflowFils), tone: 'gold' },
+      { label: L('reports.monthInflow'), value: money(language, s.inflowFils), tone: 'green' },
       { label: L('reports.monthOutflow'), value: money(language, s.outflowFils), tone: 'coral' },
       { label: L('reports.monthClosing'), value: money(language, s.closingFils), tone: 'navy' },
     ],
@@ -288,14 +288,14 @@ export function buildReportModel(input: ReportInput): ReportModel {
     currencyNote: language === 'ar' ? 'المبالغ بالدينار الكويتي (د.ك)' : language === 'en' ? 'Amounts in Kuwaiti dinars (KWD)' : 'المبالغ بالدينار الكويتي (د.ك) / Amounts in Kuwaiti dinars (KWD)',
     summary: [
       { label: L('reports.openingBalance'), value: money(language, period.openingFils), tone: 'navy' },
-      { label: L('reports.totalInflow'), value: money(language, period.inflowFils), tone: 'gold' },
+      { label: L('reports.totalInflow'), value: money(language, period.inflowFils), tone: 'green' },
       { label: L('reports.totalOutflow'), value: money(language, period.outflowFils), tone: 'coral' },
       { label: L('reports.closingBalance'), value: money(language, period.closingFils), tone: 'navy' },
       { label: L('reports.unpaidCommitments'), value: money(language, period.unpaidFils), tone: 'amber' },
       { label: L('reports.balanceAfterCommitments'), value: money(language, period.balanceAfterCommitmentsFils), tone: 'blue' },
     ],
     headline: [
-      { label: L('reports.totalInflow'), value: money(language, period.inflowFils), tone: 'gold', icon: 'arrowOut' },
+      { label: L('reports.totalInflow'), value: money(language, period.inflowFils), tone: 'green', icon: 'arrowOut' },
       { label: L('reports.totalOutflow'), value: money(language, period.outflowFils), tone: 'coral', icon: 'arrowIn' },
       { label: L('reports.netFlow'), value: money(language, period.inflowFils - period.outflowFils), tone: 'navy', icon: 'bars' },
     ],

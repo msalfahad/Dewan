@@ -31,7 +31,7 @@ const hex = (h: string): RGB => {
   return rgb(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255);
 };
 
-/** Print palette: white paper, dark navy, champagne gold, coral outflows, amber dues. No green. */
+/** Print palette: white paper, dark navy, champagne-gold accents, green inflows, coral outflows, amber dues. */
 export const PDF_COLORS = {
   paper: hex('#FFFFFF'),
   ivoryCard: hex('#FCFAF5'),
@@ -41,6 +41,9 @@ export const PDF_COLORS = {
   navy: hex('#0B1428'),
   navySoft: hex('#1C2A4A'),
   gold: hex('#B8955A'),
+  green: hex('#1E9E5A'),
+  greenTint: hex('#EAF7EF'),
+  greenBorder: hex('#B7E2C8'),
   goldLight: hex('#D4B483'),
   goldTint: hex('#F3EAD8'),
   coral: hex('#D9534A'),
@@ -62,6 +65,7 @@ const CATEGORY_COLORS = [hex('#3F6AA8'), PDF_COLORS.coral, PDF_COLORS.gold, PDF_
 
 const toneColor: Record<Tone, RGB> = {
   gold: PDF_COLORS.gold,
+  green: PDF_COLORS.green,
   coral: PDF_COLORS.coral,
   amber: PDF_COLORS.amber,
   navy: PDF_COLORS.navy,
@@ -293,7 +297,7 @@ function ledgerBodyRow(r: ReportRow, index: number): BodyRow {
     cells: r.cells,
     fill,
     color: {
-      inflow: r.isPendingInflow ? PDF_COLORS.muted : PDF_COLORS.gold,
+      inflow: r.isPendingInflow ? PDF_COLORS.muted : PDF_COLORS.green,
       outflow: r.isUnpaidOutflow ? PDF_COLORS.amber : PDF_COLORS.coral,
       balance: r.balanceFils < 0 ? PDF_COLORS.coral : PDF_COLORS.navy,
     },
@@ -381,13 +385,16 @@ function drawHeadlineCards(cv: Canvas, model: ReportModel) {
   model.headline.forEach((s, i) => {
     const start = MARGIN + i * (w + gap);
     const pink = s.tone === 'coral';
-    cv.rect(start, cv.y, w, h, pink ? PDF_COLORS.pinkCard : PDF_COLORS.ivoryCard, pink ? PDF_COLORS.pinkBorder : PDF_COLORS.cardBorder, 0.8);
+    const green = s.tone === 'green';
+    const fill = pink ? PDF_COLORS.pinkCard : green ? PDF_COLORS.greenTint : PDF_COLORS.ivoryCard;
+    const border = pink ? PDF_COLORS.pinkBorder : green ? PDF_COLORS.greenBorder : PDF_COLORS.cardBorder;
+    cv.rect(start, cv.y, w, h, fill, border, 0.8);
     const color = toneColor[s.tone === 'navy' ? 'gold' : s.tone];
     cv.icon(s.icon, start + w - 30, cv.y + 13, 22, color);
     const textW = w - 44;
-    cv.text(cv.truncate(s.label, textW, { size: 7.8, bold: true }), start + 9, textW, cv.y + 18, { size: 7.8, bold: true, color: pink ? PDF_COLORS.coral : PDF_COLORS.navy });
+    cv.text(cv.truncate(s.label, textW, { size: 7.8, bold: true }), start + 9, textW, cv.y + 18, { size: 7.8, bold: true, color: pink ? PDF_COLORS.coral : green ? PDF_COLORS.green : PDF_COLORS.navy });
     const size = cv.width(s.value, { size: 12, bold: true }) > textW ? 9 : 12;
-    cv.text(cv.truncate(s.value, textW, { size, bold: true }), start + 9, textW, cv.y + 38, { size, bold: true, color: s.tone === 'coral' ? PDF_COLORS.coral : PDF_COLORS.navy });
+    cv.text(cv.truncate(s.value, textW, { size, bold: true }), start + 9, textW, cv.y + 38, { size, bold: true, color: pink ? PDF_COLORS.coral : green ? PDF_COLORS.green : PDF_COLORS.navy });
   });
   cv.y += h + 8;
 }
@@ -447,7 +454,7 @@ function drawPeriodChart(cv: Canvas, box: Box, model: ReportModel) {
   legend(
     cv,
     [
-      { label: model.labels.inflow, color: PDF_COLORS.gold },
+      { label: model.labels.inflow, color: PDF_COLORS.green },
       { label: model.labels.outflow, color: PDF_COLORS.coral },
       ...(hasDue ? [{ label: model.labels.due, color: PDF_COLORS.amber }] : []),
     ],
@@ -470,7 +477,7 @@ function drawPeriodChart(cv: Canvas, box: Box, model: ReportModel) {
     const base = plot.top + plot.height;
     const center = plot.start + i * slot + slot / 2;
     const vals: [number, RGB][] = [
-      [m.inflowFils, PDF_COLORS.gold],
+      [m.inflowFils, PDF_COLORS.green],
       [m.outflowFils, PDF_COLORS.coral],
       ...(hasDue ? ([[m.dueFils, PDF_COLORS.amber]] as [number, RGB][]) : []),
     ];
@@ -566,7 +573,7 @@ function drawTrendChart(cv: Canvas, box: Box, model: ReportModel) {
 function drawInOutChart(cv: Canvas, box: Box, model: ReportModel) {
   const p = chartFrame(cv, box, model.labels.inflowVsOutflow);
   const bars = [
-    { label: model.labels.inflow, fils: model.charts.inflowFils, color: PDF_COLORS.gold },
+    { label: model.labels.inflow, fils: model.charts.inflowFils, color: PDF_COLORS.green },
     { label: model.labels.outflow, fils: model.charts.outflowFils, color: PDF_COLORS.coral },
     { label: model.labels.due, fils: model.charts.dueFils, color: PDF_COLORS.amber },
   ];

@@ -28,7 +28,7 @@ export function RecurringScreen({ month, onBack, onToast }: { month: string; onB
     if (fils === null || fils <= 0) return setError(t('add.errors.amount'));
     if (!description.trim()) return setError(t('add.errors.description'));
     setError(null);
-    await repo.saveRecurring({
+    const saving = repo.saveRecurring({
       id: newId('rec'),
       description: description.trim(),
       ...(lang === 'en' ? { descriptionEn: description.trim() } : {}),
@@ -40,6 +40,10 @@ export function RecurringScreen({ month, onBack, onToast }: { month: string; onB
       active: true,
       createdAt: Date.now(),
     });
+    saving.catch((err) => {
+      console.error(err);
+      onToast(t('common.error'));
+    });
     setDescription('');
     setAmount('');
     setCounterparty('');
@@ -47,7 +51,11 @@ export function RecurringScreen({ month, onBack, onToast }: { month: string; onB
 
   const generate = async () => {
     const created = generateRecurringForMonth(recurring, month, transactions, categoriesById, repo.userId);
-    if (created.length) await repo.saveTransactions(created);
+    if (created.length)
+      repo.saveTransactions(created).catch((err) => {
+        console.error(err);
+        onToast(t('common.error'));
+      });
     onToast(created.length ? t('recurring.generated', { count: created.length }) : t('recurring.nothing'));
   };
 

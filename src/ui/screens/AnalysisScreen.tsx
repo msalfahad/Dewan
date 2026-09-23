@@ -29,7 +29,7 @@ export function CategoryAnalysis({ months }: { months: string[] }) {
           <CategoryIcon id={c.categoryId} icon={c.icon} size={18} />
         </span>
         <div>{categoryName(c, lang)}</div>
-        <b className={kind === 'inflow' ? 'gold' : 'coral'}>
+        <b className={kind === 'inflow' ? 'pos' : 'coral'}>
           <Money fils={c.paidFils} />
         </b>
         <div className="cat-bar" aria-hidden="true">

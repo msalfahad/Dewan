@@ -12,13 +12,16 @@ export function OpeningBalanceForm({ onSaved }: { onSaved: (msg: string) => void
   const [description, setDescription] = useState(openingBalance?.description ?? '');
   const [error, setError] = useState<string | null>(null);
 
-  const save = async (e: FormEvent) => {
+  const save = (e: FormEvent) => {
     e.preventDefault();
     const fils = parseKwdToFils(amount);
     if (fils === null) return setError(t('add.errors.amount'));
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return setError(t('add.errors.date'));
     setError(null);
-    await repo.saveOpeningBalance({ amountFils: fils, date, description: description.trim() });
+    repo.saveOpeningBalance({ amountFils: fils, date, description: description.trim() }).catch((err) => {
+      console.error(err);
+      onSaved(t('common.error'));
+    });
     onSaved(t('common.saved'));
   };
 
