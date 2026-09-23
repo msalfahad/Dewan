@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { useAppData } from '../../data/AppDataProvider';
 import { APP_CONFIG } from '../../config/app';
 import { demoData } from '../../domain/demo';
 import { useI18n } from '../../i18n/I18nProvider';
-import { LanguageSwitcher } from '../components/common';
+import { ConfirmPanel, LanguageSwitcher } from '../components/common';
 import { Icon } from '../components/Icon';
 import { OpeningBalanceForm } from './OpeningBalanceForm';
 
@@ -10,15 +11,23 @@ export function SettingsScreen({ account, onSignOut, onOpenCategories, onOpenRec
   const { t } = useI18n();
   const { repo } = useAppData();
 
-  const loadDemo = async () => {
-    if (!window.confirm(t('settings.loadDemoConfirm'))) return;
-    await repo.replaceAll(demoData(repo.userId));
-    onToast(t('common.saved'));
-  };
-  const clearAll = async () => {
-    if (!window.confirm(t('settings.clearAllConfirm'))) return;
-    await repo.replaceAll({ transactions: [], categories: [], recurring: [], openingBalance: null });
-    onToast(t('common.deleted'));
+  const [pending, setPending] = useState<'demo' | 'clear' | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const run = async () => {
+    if (!pending) return;
+    setBusy(true);
+    try {
+      if (pending === 'demo') await repo.replaceAll(demoData(repo.userId));
+      else await repo.replaceAll({ transactions: [], categories: [], recurring: [], openingBalance: null });
+      onToast(pending === 'demo' ? t('common.saved') : t('common.deleted'));
+      setPending(null);
+    } catch (e) {
+      console.error(e);
+      onToast(t('common.error'));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -74,13 +83,22 @@ export function SettingsScreen({ account, onSignOut, onOpenCategories, onOpenRec
       <div className="card stack">
         <h3>{t('settings.data')}</h3>
         <div className="row">
-          <button type="button" className="btn" onClick={() => void loadDemo()}>
+          <button type="button" className="btn" onClick={() => setPending('demo')} disabled={busy}>
             {t('settings.loadDemo')}
           </button>
-          <button type="button" className="btn danger" onClick={() => void clearAll()}>
+          <button type="button" className="btn danger" onClick={() => setPending('clear')} disabled={busy}>
             {t('settings.clearAll')}
           </button>
         </div>
+        {pending && (
+          <ConfirmPanel
+            message={t(pending === 'demo' ? 'settings.loadDemoConfirm' : 'settings.clearAllConfirm')}
+            confirmLabel={busy ? t('common.loading') : t('common.confirm')}
+            onConfirm={() => void run()}
+            onCancel={() => setPending(null)}
+            busy={busy}
+          />
+        )}
       </div>
     </div>
   );

@@ -115,3 +115,24 @@ export function EmptyState({ text, children }: { text: string; children?: ReactN
     </div>
   );
 }
+
+/**
+ * In-app confirmation (replaces window.confirm, which iPhone home-screen apps and in-app
+ * browsers can silently block, making the action appear to do nothing).
+ */
+export function ConfirmPanel({ message, confirmLabel, onConfirm, onCancel, busy = false }: { message: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void; busy?: boolean }) {
+  const { t } = useI18n();
+  return (
+    <div className="confirm-panel" role="alertdialog" aria-label={message}>
+      <p>{message}</p>
+      <div className="row">
+        <button type="button" className="btn danger" onClick={onConfirm} disabled={busy}>
+          <Icon name="trash" size={18} /> {confirmLabel}
+        </button>
+        <button type="button" className="btn ghost" onClick={onCancel} disabled={busy}>
+          {t('common.cancel')}
+        </button>
+      </div>
+    </div>
+  );
+}
