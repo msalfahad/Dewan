@@ -66,3 +66,54 @@ describe('deleting works without window.confirm (blocked on some iPhones)', () =
     expect(state.openingBalance).toBeNull();
   });
 });
+
+describe('edit and delete buttons on every row', () => {
+  it('shows تعديل / حذف on list rows and calls the handlers', async () => {
+    const { LedgerList } = await import('./screens/LedgerViews');
+    const { RowActionsContext } = await import('./components/RowActions');
+    const repo = seeded();
+    const edit = vi.fn();
+    const remove = vi.fn();
+    function List() {
+      const { ledger } = useAppData();
+      return <LedgerList rows={ledger.rows} onOpen={() => undefined} />;
+    }
+    await act(async () =>
+      render(
+        <I18nProvider initialLang="ar">
+          <AppDataProvider repo={repo} today="2026-09-23">
+            <RowActionsContext.Provider value={{ edit, remove }}>
+              <List />
+            </RowActionsContext.Provider>
+          </AppDataProvider>
+        </I18nProvider>,
+      ),
+    );
+    // opening balance + coffee beans → two rows, each with edit and delete
+    expect(screen.getAllByRole('button', { name: 'تعديل' })).toHaveLength(2);
+    fireEvent.click(screen.getAllByRole('button', { name: 'حذف' })[1]);
+    expect(remove).toHaveBeenCalledWith(expect.objectContaining({ key: 'coffee' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'تعديل' })[0]);
+    expect(edit).toHaveBeenCalledWith(expect.objectContaining({ kind: 'opening' }));
+  });
+
+  it('deletes the opening balance after confirmation', async () => {
+    const repo = seeded();
+    function OpeningDetail() {
+      const { ledger } = useAppData();
+      const row = ledger.rows.find((r) => r.kind === 'opening');
+      return row ? <TransactionDetail row={row} mode="delete" onClose={() => undefined} onEdit={() => undefined} onToast={() => undefined} /> : <p>no opening</p>;
+    }
+    await act(async () =>
+      render(
+        <I18nProvider initialLang="ar">
+          <AppDataProvider repo={repo} today="2026-09-23">
+            <OpeningDetail />
+          </AppDataProvider>
+        </I18nProvider>,
+      ),
+    );
+    await act(async () => fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: /حذف/ })));
+    expect(screen.getByText('no opening')).toBeTruthy();
+  });
+});

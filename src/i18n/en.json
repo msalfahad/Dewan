@@ -248,7 +248,8 @@
     "date": "Effective date",
     "description": "Description (optional)",
     "hint": "The opening balance is the starting point of the chronological ledger, not a family payment or an expense.",
-    "notSet": "No opening balance entered yet."
+    "notSet": "No opening balance entered yet.",
+    "deleteConfirm": "Delete the opening balance? Balances will start from zero until you enter a new one."
   },
   "reports": {
     "title": "Diwaniya Account Report",
