@@ -7,6 +7,7 @@ import type { LedgerRow } from '../domain/ledger';
 import type { Transaction, TransactionType } from '../domain/types';
 import { useI18n } from '../i18n/I18nProvider';
 import { Icon } from './components/Icon';
+import { LanguageSwitcher } from './components/common';
 import { CategoriesScreen } from './screens/CategoriesScreen';
 import { Dashboard } from './screens/Dashboard';
 import { LedgerScreen } from './screens/LedgerScreen';
@@ -99,10 +100,39 @@ export function Shell({ account, onSignOut }: { account: string | null; onSignOu
     { id: 'reports', icon: 'bars', label: t('nav.reports') },
   ];
   const showMonth = tab === 'home' || tab === 'family' || tab === 'expenses';
+  const addType: TransactionType = tab === 'family' ? 'inflow' : 'outflow';
 
   return (
     <RowActionsContext.Provider value={rowActions}>
       <div className="app">
+        {/* Laptop / desktop: sidebar navigation (hidden on phones, which use the bottom bar). */}
+        <aside className="sidebar no-print" aria-label={t('app.name')}>
+          <div className="side-brand">
+            <span className="logo">
+              <Icon name="diwan" size={26} />
+            </span>
+            <span>
+              <b>{t('app.name')}</b>
+              <small>{t('app.tagline')}</small>
+            </span>
+          </div>
+          <button type="button" className="btn primary side-add" onClick={() => setEditing({ type: addType })}>
+            <Icon name="plusCircle" size={20} /> {t('home.addTransaction')}
+          </button>
+          <nav className="side-nav">
+            {[...nav, { id: 'settings' as Tab, icon: 'settings', label: t('nav.settings') }].map((n) => (
+              <button key={n.id} type="button" aria-current={tab === n.id ? 'page' : undefined} onClick={() => go(n.id)}>
+                <Icon name={n.icon} size={20} />
+                <span>{n.label}</span>
+              </button>
+            ))}
+          </nav>
+          <div className="side-foot">
+            <LanguageSwitcher />
+            {account && <small className="muted">{account}</small>}
+          </div>
+        </aside>
+
         <header className="topbar no-print">
           <button type="button" className="icon-plain" onClick={() => go('home')} aria-label={t('nav.dashboard')}>
             <Icon name="home" size={24} />
