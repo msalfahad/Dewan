@@ -7,6 +7,9 @@
  * (bidiText.ts). Arabic and bilingual reports are laid out right-to-left (columns, charts,
  * legends and alignment mirrored); English reports left-to-right.
  *
+ * Layout follows the Royal Sapphire design: A4 portrait, white paper, navy/gold header swoosh,
+ * logo, icon summary cards, period bar chart + category donut, and a navy-headed ledger table.
+ *
  * The detailed ledger table always includes the Balance column: widths are distributed by
  * weight over the full printable width, cells wrap/truncate instead of pushing columns off
  * the page, and the table header is repeated on every page.
@@ -16,6 +19,7 @@ import fontkit from '@pdf-lib/fontkit';
 import { formatAmount } from '../domain/money';
 import { runDrawText, visualRuns, type BaseDir } from './bidiText';
 import type { ColumnKey, ReportModel, ReportRow, Tone } from './reportModel';
+import { ICON_PATHS } from '../ui/iconPaths';
 
 export interface ReportFonts {
   regular: Uint8Array | ArrayBuffer;
@@ -27,9 +31,12 @@ const hex = (h: string): RGB => {
   return rgb(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255);
 };
 
-/** Print palette: warm ivory paper, dark navy, champagne gold, coral outflows, amber dues. No green. */
+/** Print palette: white paper, dark navy, champagne gold, coral outflows, amber dues. No green. */
 export const PDF_COLORS = {
-  paper: hex('#FBF8F1'),
+  paper: hex('#FFFFFF'),
+  ivoryCard: hex('#FCFAF5'),
+  pinkCard: hex('#FDEEEE'),
+  pinkBorder: hex('#F0C1C3'),
   white: hex('#FFFFFF'),
   navy: hex('#0B1428'),
   navySoft: hex('#1C2A4A'),
@@ -45,11 +52,13 @@ export const PDF_COLORS = {
   blue: hex('#5F7899'),
   text: hex('#1B2233'),
   muted: hex('#5B6475'),
-  border: hex('#D6CCB8'),
-  rowAlt: hex('#F6F1E6'),
+  border: hex('#E3DCCD'),
+  cardBorder: hex('#E7D3A6'),
+  rowAlt: hex('#FAF7F0'),
 };
 
-const CATEGORY_COLORS = [PDF_COLORS.coral, PDF_COLORS.gold, PDF_COLORS.amber, PDF_COLORS.blue, PDF_COLORS.silver, hex('#C9B99A'), hex('#8C7A5B'), hex('#7D8BA3')];
+/** Donut / category palette as in the design: muted blue, coral, gold, light gold, silver … */
+const CATEGORY_COLORS = [hex('#3F6AA8'), PDF_COLORS.coral, PDF_COLORS.gold, PDF_COLORS.goldLight, PDF_COLORS.silver, hex('#8C7A5B'), hex('#7D8BA3'), PDF_COLORS.amber];
 
 const toneColor: Record<Tone, RGB> = {
   gold: PDF_COLORS.gold,
@@ -59,9 +68,9 @@ const toneColor: Record<Tone, RGB> = {
   blue: PDF_COLORS.blue,
 };
 
-const PAGE_W = 841.89; // A4 landscape
-const PAGE_H = 595.28;
-const MARGIN = 28;
+const PAGE_W = 595.28; // A4 portrait
+const PAGE_H = 841.89;
+const MARGIN = 30;
 const FOOTER_H = 22;
 const CONTENT_W = PAGE_W - MARGIN * 2;
 
@@ -151,6 +160,18 @@ class Canvas {
     this.page.drawCircle({ x: this.rtl ? PAGE_W - start : start, y: PAGE_H - yTop, size: r, color });
   }
 
+  /** Draws one of the shared 24×24 line icons (same set as the app). */
+  icon(name: string, start: number, yTop: number, size: number, color: RGB) {
+    const path = ICON_PATHS[name];
+    if (!path) return;
+    this.page.drawSvgPath(path, { x: this.left(start, size), y: PAGE_H - yTop, scale: size / 24, borderColor: color, borderWidth: 1.7 });
+  }
+
+  /** Fills an SVG path given in absolute top-left page coordinates (already mirrored by the caller). */
+  path(d: string, fill: RGB) {
+    this.page.drawSvgPath(d, { x: 0, y: PAGE_H, color: fill });
+  }
+
   /** Greedy word wrap on logical text; the last allowed line is truncated with an ellipsis. */
   wrap(text: string, maxWidth: number, opts: TextOpts, maxLines = 3): string[] {
     const words = text.split(/\s+/).filter(Boolean);
@@ -217,10 +238,10 @@ export function layoutColumns(columns: { key: string; label: string; weight: num
   });
 }
 
-const CELL_PAD = 4;
-const BODY: TextOpts = { size: 7.6 };
-const LINE_H = 9.6;
-const HEAD: TextOpts = { size: 7.6, bold: true, color: PDF_COLORS.paper };
+const CELL_PAD = 3.5;
+const BODY: TextOpts = { size: 7 };
+const LINE_H = 9;
+const HEAD: TextOpts = { size: 7, bold: true, color: PDF_COLORS.paper };
 
 function headerHeight(cv: Canvas, cols: ColumnLayout[]): { height: number; lines: string[][] } {
   const lines = cols.map((c) => cv.wrap(c.label, c.width - CELL_PAD * 2, HEAD, 2));
@@ -232,8 +253,9 @@ function drawHeader(cv: Canvas, cols: ColumnLayout[]) {
   const { height, lines } = headerHeight(cv, cols);
   const top = cv.y;
   cols.forEach((c, i) => {
-    cv.rect(c.start, top, c.width, height, c.key === 'balance' ? PDF_COLORS.gold : PDF_COLORS.navy, PDF_COLORS.navySoft);
-    lines[i].forEach((l, j) => cv.text(l, c.start + CELL_PAD, c.width - CELL_PAD * 2, top + CELL_PAD + 7 + j * LINE_H, HEAD, c.numeric ? 'center' : 'start'));
+    cv.rect(c.start, top, c.width, height, PDF_COLORS.navy, PDF_COLORS.navySoft);
+    const opts = c.key === 'balance' ? { ...HEAD, color: PDF_COLORS.goldLight } : HEAD;
+    lines[i].forEach((l, j) => cv.text(l, c.start + CELL_PAD, c.width - CELL_PAD * 2, top + CELL_PAD + 7 + j * LINE_H, opts, c.numeric ? 'center' : 'start'));
   });
   cv.y += height;
 }
@@ -282,38 +304,57 @@ function ledgerBodyRow(r: ReportRow, index: number): BodyRow {
 // ---------------------------------------------------------------------------
 // Page furniture
 
+/** Mirrors an x coordinate (points from the start edge) into a physical x. */
+function px(cv: Canvas, xFromStart: number): number {
+  return cv.rtl ? PAGE_W - xFromStart : xFromStart;
+}
+
+/**
+ * Cover header: navy sweep with a champagne-gold swoosh on the end side, logo + app name on the
+ * start side, then the centred report title, selected period and generation date.
+ */
 function drawCoverHeader(cv: Canvas, model: ReportModel) {
-  const h = 84;
-  cv.page.drawRectangle({ x: 0, y: PAGE_H - h, width: PAGE_W, height: h, color: PDF_COLORS.navy });
-  cv.page.drawRectangle({ x: 0, y: PAGE_H - h - 3, width: PAGE_W, height: 3, color: PDF_COLORS.goldLight });
-  const half = CONTENT_W / 2;
-  cv.text(model.title, MARGIN, half, 36, { size: 20, bold: true, color: PDF_COLORS.paper });
-  cv.text(model.subtitle, MARGIN, half, 54, { size: 10.5, color: PDF_COLORS.goldLight });
-  cv.text(model.currencyNote, MARGIN, half, 70, { size: 7.5, color: PDF_COLORS.silver });
-  const endStart = MARGIN + half;
-  cv.text(`${model.generatedLabel}: ${model.generatedValue}`, endStart, half, 32, { size: 8.5, color: PDF_COLORS.paper }, 'end');
-  cv.text(model.monthsLabel, endStart, half, 47, { size: 8.5, bold: true, color: PDF_COLORS.goldLight }, 'end');
-  cv.wrap(model.monthsValue, half, { size: 8 }, 2).forEach((l, i) => cv.text(l, endStart, half, 60 + i * 10, { size: 8, color: PDF_COLORS.paper }, 'end'));
-  cv.y = h + 14;
+  // Shapes are defined from the END edge (x measured from the far side) and mirrored per direction.
+  const e = (x: number) => px(cv, PAGE_W - x);
+  cv.path(`M${e(0)} 0 L${e(350)} 0 C${e(300)} 38 ${e(190)} 70 ${e(0)} 92 Z`, PDF_COLORS.navy);
+  cv.path(`M${e(0)} 104 C${e(170)} 88 ${e(300)} 52 ${e(372)} 0 L${e(362)} 0 C${e(292)} 46 ${e(165)} 80 ${e(0)} 97 Z`, PDF_COLORS.goldLight);
+  cv.path(`M${e(0)} 112 C${e(150)} 100 ${e(270)} 70 ${e(345)} 22 L${e(343)} 26 C${e(265)} 76 ${e(145)} 104 ${e(0)} 115 Z`, PDF_COLORS.gold);
+
+  // Logo + app name (start side)
+  const logo = 34;
+  cv.rect(MARGIN, 26, logo, logo, PDF_COLORS.paper, PDF_COLORS.gold, 1);
+  cv.icon('diwan', MARGIN + 6, 32, logo - 12, PDF_COLORS.gold);
+  cv.text(model.appName, MARGIN + logo + 8, 220, 42, { size: 11, bold: true, color: PDF_COLORS.navy });
+  cv.text(model.tagline, MARGIN + logo + 8, 220, 55, { size: 7, color: PDF_COLORS.muted });
+
+  cv.text(model.title, MARGIN, CONTENT_W, 142, { size: 22, bold: true, color: PDF_COLORS.navy }, 'center');
+  cv.wrap(model.monthsValue, CONTENT_W - 40, { size: 10.5, bold: true }, 2).forEach((l, i) =>
+    cv.text(l, MARGIN, CONTENT_W, 162 + i * 13, { size: 10.5, bold: true, color: PDF_COLORS.navy }, 'center'),
+  );
+  const extra = model.monthsValue.length > 70 ? 13 : 0;
+  cv.text(`${model.generatedLabel}: ${model.generatedValue} · ${model.currencyNote}`, MARGIN, CONTENT_W, 177 + extra, { size: 7.5, color: PDF_COLORS.muted }, 'center');
+  cv.y = 192 + extra;
 }
 
 function drawRunningHeader(cv: Canvas, model: ReportModel) {
   const h = 26;
   cv.page.drawRectangle({ x: 0, y: PAGE_H - h, width: PAGE_W, height: h, color: PDF_COLORS.navy });
   cv.page.drawRectangle({ x: 0, y: PAGE_H - h - 2, width: PAGE_W, height: 2, color: PDF_COLORS.goldLight });
-  cv.text(model.title, MARGIN, CONTENT_W / 2, 17, { size: 10, bold: true, color: PDF_COLORS.paper });
-  cv.text(model.monthsValue, MARGIN + CONTENT_W / 2, CONTENT_W / 2, 17, { size: 7.5, color: PDF_COLORS.goldLight }, 'end');
-  cv.y = h + 12;
+  cv.text(model.title, MARGIN, CONTENT_W / 2, 17, { size: 9.5, bold: true, color: PDF_COLORS.paper });
+  cv.text(cv.truncate(model.monthsValue, CONTENT_W / 2, { size: 7.5 }), MARGIN + CONTENT_W / 2, CONTENT_W / 2, 17, { size: 7.5, color: PDF_COLORS.goldLight }, 'end');
+  cv.y = h + 14;
 }
 
 function drawFooters(cv: Canvas, model: ReportModel) {
   const total = cv.pages.length;
   cv.pages.forEach((p, i) => {
     cv.page = p;
-    const y = PAGE_H - MARGIN + 6;
-    cv.line(MARGIN, y - 10, MARGIN + CONTENT_W, y - 10, PDF_COLORS.goldLight, 0.6);
-    cv.text(`${model.footer} · ${model.generatedValue}`, MARGIN, CONTENT_W * 0.7, y, { size: 7, color: PDF_COLORS.muted });
-    cv.text(model.pageLabel(i + 1, total), MARGIN + CONTENT_W * 0.7, CONTENT_W * 0.3, y, { size: 7, color: PDF_COLORS.muted }, 'end');
+    const y = PAGE_H - MARGIN + 8;
+    cv.line(MARGIN, y - 11, MARGIN + CONTENT_W, y - 11, PDF_COLORS.goldLight, 0.6);
+    const small = { size: 6.4, color: PDF_COLORS.muted };
+    cv.text(cv.truncate(`${model.labels.issuedOn}: ${model.generatedValue}`, CONTENT_W * 0.38, small), MARGIN, CONTENT_W * 0.38, y, small);
+    cv.text(cv.truncate(model.appName, CONTENT_W * 0.28, { size: 6.4, bold: true }), MARGIN + CONTENT_W * 0.38, CONTENT_W * 0.28, y, { size: 6.4, bold: true, color: PDF_COLORS.gold }, 'center');
+    cv.text(cv.truncate(model.pageLabel(i + 1, total), CONTENT_W * 0.32, small), MARGIN + CONTENT_W * 0.68, CONTENT_W * 0.32, y, small, 'end');
   });
 }
 
@@ -321,24 +362,49 @@ function bottomLimit() {
   return PAGE_H - MARGIN - FOOTER_H;
 }
 
-function sectionTitle(cv: Canvas, title: string, size = 12.5) {
-  cv.rect(MARGIN, cv.y, 4, size + 4, PDF_COLORS.gold);
-  cv.text(title, MARGIN + 10, CONTENT_W - 10, cv.y + size, { size, bold: true, color: PDF_COLORS.navy });
-  cv.y += size + 12;
+function sectionTitle(cv: Canvas, title: string, size = 11.5) {
+  cv.text(title, MARGIN, CONTENT_W, cv.y + size, { size, bold: true, color: PDF_COLORS.navy });
+  cv.y += size + 9;
 }
 
-function drawStatCards(cv: Canvas, stats: { label: string; value: string; tone: Tone }[], height = 46) {
+function monthTitle(cv: Canvas, title: string) {
+  cv.rect(MARGIN, cv.y, 3.5, 15, PDF_COLORS.gold);
+  cv.text(title, MARGIN + 9, CONTENT_W - 9, cv.y + 12, { size: 11, bold: true, color: PDF_COLORS.navy });
+  cv.y += 22;
+}
+
+/** Headline cards (inflow / outflow / net flow) with an icon on the end side, as in the design. */
+function drawHeadlineCards(cv: Canvas, model: ReportModel) {
+  const gap = 10;
+  const h = 50;
+  const w = (CONTENT_W - gap * 2) / 3;
+  model.headline.forEach((s, i) => {
+    const start = MARGIN + i * (w + gap);
+    const pink = s.tone === 'coral';
+    cv.rect(start, cv.y, w, h, pink ? PDF_COLORS.pinkCard : PDF_COLORS.ivoryCard, pink ? PDF_COLORS.pinkBorder : PDF_COLORS.cardBorder, 0.8);
+    const color = toneColor[s.tone === 'navy' ? 'gold' : s.tone];
+    cv.icon(s.icon, start + w - 30, cv.y + 13, 22, color);
+    const textW = w - 44;
+    cv.text(cv.truncate(s.label, textW, { size: 7.8, bold: true }), start + 9, textW, cv.y + 18, { size: 7.8, bold: true, color: pink ? PDF_COLORS.coral : PDF_COLORS.navy });
+    const size = cv.width(s.value, { size: 12, bold: true }) > textW ? 9 : 12;
+    cv.text(cv.truncate(s.value, textW, { size, bold: true }), start + 9, textW, cv.y + 38, { size, bold: true, color: s.tone === 'coral' ? PDF_COLORS.coral : PDF_COLORS.navy });
+  });
+  cv.y += h + 8;
+}
+
+function drawBalanceCards(cv: Canvas, stats: { label: string; value: string; tone: Tone }[], baseHeight = 38) {
   const gap = 8;
+  const twoLine = stats.some((s) => cv.width(s.label, { size: 6.5, bold: true }) > (CONTENT_W - gap * (stats.length - 1)) / stats.length - 14);
+  const height = baseHeight + (twoLine ? 8 : 0);
   const w = (CONTENT_W - gap * (stats.length - 1)) / stats.length;
   stats.forEach((s, i) => {
     const start = MARGIN + i * (w + gap);
-    cv.rect(start, cv.y, w, height, PDF_COLORS.white, PDF_COLORS.border, 0.6);
-    cv.rect(start, cv.y, w, 3, toneColor[s.tone]);
-    cv.wrap(s.label, w - 12, { size: 7.2, bold: true }, 2).forEach((l, j) => cv.text(l, start + 6, w - 12, cv.y + 13 + j * 8.5, { size: 7.2, bold: true, color: PDF_COLORS.muted }));
-    const valueLines = cv.wrap(s.value, w - 12, { size: 9.5, bold: true }, 2);
-    valueLines.forEach((l, j) =>
-      cv.text(l, start + 6, w - 12, cv.y + height - 7 - (valueLines.length - 1 - j) * 10.5, { size: valueLines.length > 1 ? 8.2 : 9.5, bold: true, color: toneColor[s.tone] }),
-    );
+    cv.rect(start, cv.y, w, height, PDF_COLORS.white, PDF_COLORS.border, 0.7);
+    cv.rect(start, cv.y, 3, height, toneColor[s.tone]);
+    const labelLines = cv.wrap(s.label, w - 14, { size: 6.5, bold: true }, 2);
+    labelLines.forEach((l, j) => cv.text(l, start + 9, w - 14, cv.y + 11 + j * 8, { size: 6.5, bold: true, color: PDF_COLORS.muted }));
+    const size = cv.width(s.value, { size: 9.5, bold: true }) > w - 14 ? 7.2 : 9.5;
+    cv.text(cv.truncate(s.value, w - 14, { size, bold: true }), start + 9, w - 14, cv.y + height - 9, { size, bold: true, color: toneColor[s.tone] });
   });
   cv.y += height + 12;
 }
@@ -354,45 +420,114 @@ interface Box {
 }
 
 function chartFrame(cv: Canvas, box: Box, title: string): Box {
-  cv.rect(box.start, box.top, box.width, box.height, PDF_COLORS.white, PDF_COLORS.border, 0.6);
-  cv.text(title, box.start + 8, box.width - 16, box.top + 14, { size: 8.5, bold: true, color: PDF_COLORS.navy });
+  cv.rect(box.start, box.top, box.width, box.height, PDF_COLORS.white, PDF_COLORS.border, 0.7);
+  cv.text(title, box.start + 8, box.width - 16, box.top + 15, { size: 8.8, bold: true, color: PDF_COLORS.navy }, 'center');
   return { start: box.start + 10, top: box.top + 24, width: box.width - 20, height: box.height - 32 };
 }
 
-function legend(cv: Canvas, items: { label: string; color: RGB }[], start: number, top: number) {
-  let x = start;
-  for (const it of items) {
-    cv.rect(x, top - 6, 7, 7, it.color);
-    const w = cv.width(it.label, { size: 7 });
-    cv.text(it.label, x + 10, w + 2, top, { size: 7, color: PDF_COLORS.muted });
-    x += w + 22;
-  }
+function legend(cv: Canvas, items: { label: string; color: RGB }[], center: number, top: number) {
+  const widths = items.map((it) => cv.width(it.label, { size: 6.8 }) + 18);
+  let x = center - widths.reduce((a, b) => a + b, 0) / 2;
+  items.forEach((it, i) => {
+    cv.circle(x + 3.5, top - 2.5, 3.2, it.color);
+    cv.text(it.label, x + 9, widths[i], top, { size: 6.8, color: PDF_COLORS.muted });
+    x += widths[i];
+  });
 }
 
 function compactAmount(fils: number): string {
   return formatAmount(fils).replace(/\.\d{3}$/, '');
 }
 
-function drawInOutChart(cv: Canvas, box: Box, model: ReportModel) {
-  const p = chartFrame(cv, box, model.labels.inflowVsOutflow);
-  const bars = [
-    { label: model.labels.inflow, fils: model.charts.inflowFils, color: PDF_COLORS.gold },
-    { label: model.labels.outflow, fils: model.charts.outflowFils, color: PDF_COLORS.coral },
-    { label: model.summary[4].label, fils: model.charts.dueFils, color: PDF_COLORS.amber },
-  ];
-  const max = Math.max(1, ...bars.map((b) => b.fils));
-  const plotH = p.height - 30;
-  const slot = p.width / bars.length;
-  const bw = Math.min(46, slot * 0.5);
-  bars.forEach((b, i) => {
-    const h = (b.fils / max) * plotH;
-    const start = p.start + i * slot + (slot - bw) / 2;
-    const base = p.top + 10 + plotH;
-    if (h > 0) cv.rect(start, base - h, bw, h, b.color);
-    cv.text(formatAmount(b.fils), p.start + i * slot, slot, base - h - 3, { size: 7, bold: true, color: PDF_COLORS.text }, 'center');
-    cv.wrap(b.label, slot - 4, { size: 6.8 }, 2).forEach((l, j) => cv.text(l, p.start + i * slot, slot, base + 10 + j * 8, { size: 6.8, color: PDF_COLORS.muted }, 'center'));
+/** "Inflow and outflow over the period": grouped monthly bars (gold / coral / amber). */
+function drawPeriodChart(cv: Canvas, box: Box, model: ReportModel) {
+  const p = chartFrame(cv, box, model.labels.periodChart);
+  const months = model.charts.monthly;
+  const hasDue = months.some((m) => m.dueFils > 0);
+  legend(
+    cv,
+    [
+      { label: model.labels.inflow, color: PDF_COLORS.gold },
+      { label: model.labels.outflow, color: PDF_COLORS.coral },
+      ...(hasDue ? [{ label: model.labels.due, color: PDF_COLORS.amber }] : []),
+    ],
+    p.start + p.width / 2,
+    p.top + 4,
+  );
+  if (!months.length) return;
+  const axisW = 34;
+  const plot = { start: p.start + axisW, top: p.top + 14, width: p.width - axisW, height: p.height - 30 };
+  const max = Math.max(1, ...months.flatMap((m) => [m.inflowFils, m.outflowFils, m.dueFils]));
+  for (let g = 0; g <= 4; g++) {
+    const y = plot.top + plot.height - (plot.height * g) / 4;
+    cv.line(plot.start, y, plot.start + plot.width, y, PDF_COLORS.border, 0.4);
+    cv.text(compactAmount(Math.round((max * g) / 4)), p.start, axisW - 4, y + 2.2, { size: 5.6, color: PDF_COLORS.muted }, 'end');
+  }
+  const slot = plot.width / months.length;
+  const series = hasDue ? 3 : 2;
+  const bw = Math.min(13, (slot - 8) / series);
+  months.forEach((m, i) => {
+    const base = plot.top + plot.height;
+    const center = plot.start + i * slot + slot / 2;
+    const vals: [number, RGB][] = [
+      [m.inflowFils, PDF_COLORS.gold],
+      [m.outflowFils, PDF_COLORS.coral],
+      ...(hasDue ? ([[m.dueFils, PDF_COLORS.amber]] as [number, RGB][]) : []),
+    ];
+    vals.forEach(([v, c], j) => {
+      const h = (v / max) * plot.height;
+      if (h > 0) cv.rect(center - (bw * series) / 2 + j * bw, base - h, bw - 1, h, c);
+    });
+    const label = months.length > 6 ? m.label.replace(/^(\S{3})\S*/, '$1') : m.label.replace(/\s\d{4}$/, '');
+    cv.text(cv.truncate(label, slot - 2, { size: 6 }), plot.start + i * slot, slot, base + 9, { size: 6, color: PDF_COLORS.muted }, 'center');
   });
-  cv.line(p.start, p.top + 10 + plotH, p.start + p.width, p.top + 10 + plotH, PDF_COLORS.border, 0.6);
+}
+
+/** Ring segment path in physical page coordinates (angles clockwise from 12 o'clock). */
+function ringSegment(cx: number, cy: number, r0: number, r1: number, a0: number, a1: number): string {
+  const pt = (r: number, a: number) => `${(cx + r * Math.sin(a)).toFixed(2)} ${(cy - r * Math.cos(a)).toFixed(2)}`;
+  const large = a1 - a0 > Math.PI ? 1 : 0;
+  return `M${pt(r1, a0)} A${r1} ${r1} 0 ${large} 1 ${pt(r1, a1)} L${pt(r0, a1)} A${r0} ${r0} 0 ${large} 0 ${pt(r0, a0)} Z`;
+}
+
+/** "Outflow by category": donut with the total in the centre and a legend with percentages. */
+function drawDonutChart(cv: Canvas, box: Box, model: ReportModel) {
+  const p = chartFrame(cv, box, model.labels.outflowByCategory);
+  const cats = model.charts.categories.slice(0, 6);
+  const rest = model.charts.categories.slice(6).reduce((s, c) => s + c.fils, 0);
+  const items = rest > 0 ? [...cats, { name: '…', fils: rest }] : cats;
+  const total = items.reduce((s, c) => s + c.fils, 0);
+  if (!total) return;
+  const r1 = Math.min(p.height / 2 - 4, p.width * 0.22);
+  const r0 = r1 * 0.58;
+  // Donut on the end side, legend on the start side (mirrors with the language).
+  const cxStart = p.start + p.width - r1 - 4;
+  const cx = px(cv, cxStart);
+  const cy = p.top + p.height / 2 + 2;
+  let a = 0;
+  items.forEach((c, i) => {
+    const sweep = (c.fils / total) * Math.PI * 2;
+    const color = CATEGORY_COLORS[i % CATEGORY_COLORS.length];
+    if (sweep >= Math.PI * 2 - 1e-6) {
+      cv.path(ringSegment(cx, cy, r0, r1, 0, Math.PI), color);
+      cv.path(ringSegment(cx, cy, r0, r1, Math.PI, Math.PI * 2), color);
+    } else cv.path(ringSegment(cx, cy, r0, r1, a, a + sweep), color);
+    a += sweep;
+  });
+  const totalText = formatAmount(total);
+  cv.text(totalText, cxStart - r0, r0 * 2, cy + 1, { size: 8, bold: true, color: PDF_COLORS.navy }, 'center');
+  cv.text(model.language === 'en' ? 'KWD' : 'د.ك', cxStart - r0, r0 * 2, cy + 10, { size: 6.5, color: PDF_COLORS.muted }, 'center');
+  const legendW = p.width - r1 * 2 - 16;
+  const rowH = Math.min(15, p.height / items.length);
+  const top = cy - (rowH * items.length) / 2 + rowH / 2;
+  items.forEach((c, i) => {
+    const y = top + i * rowH;
+    cv.circle(p.start + 4, y - 2.4, 3.2, CATEGORY_COLORS[i % CATEGORY_COLORS.length]);
+    const pct = Math.round((c.fils * 1000) / total);
+    const pctText = `${Math.trunc(pct / 10)}.${pct % 10}%`;
+    cv.text(pctText, p.start + 12, legendW - 12, y, { size: 6.8, bold: true, color: PDF_COLORS.navy }, 'end');
+    cv.text(cv.truncate(c.name, legendW - 50, { size: 6.8 }), p.start + 12, legendW - 50, y, { size: 6.8, color: PDF_COLORS.text });
+  });
 }
 
 function drawTrendChart(cv: Canvas, box: Box, model: ReportModel) {
@@ -406,13 +541,13 @@ function drawTrendChart(cv: Canvas, box: Box, model: ReportModel) {
     max += 1000;
     min -= 1000;
   }
-  const axisW = 44;
-  const plot = { start: p.start + axisW, top: p.top + 4, width: p.width - axisW - 4, height: p.height - 18 };
+  const axisW = 38;
+  const plot = { start: p.start + axisW, top: p.top + 4, width: p.width - axisW - 6, height: p.height - 16 };
   for (let g = 0; g <= 3; g++) {
     const v = min + ((max - min) * g) / 3;
     const y = plot.top + plot.height - (plot.height * g) / 3;
     cv.line(plot.start, y, plot.start + plot.width, y, PDF_COLORS.border, 0.4);
-    cv.text(compactAmount(Math.round(v)), p.start, axisW - 4, y + 2.5, { size: 6.2, color: PDF_COLORS.muted }, 'end');
+    cv.text(compactAmount(Math.round(v)), p.start, axisW - 4, y + 2.2, { size: 5.6, color: PDF_COLORS.muted }, 'end');
   }
   if (min < 0 && max > 0) {
     const y0 = plot.top + plot.height - ((0 - min) / (max - min)) * plot.height;
@@ -422,65 +557,38 @@ function drawTrendChart(cv: Canvas, box: Box, model: ReportModel) {
   const yAt = (v: number) => plot.top + plot.height - ((v - min) / (max - min)) * plot.height;
   for (let i = 1; i < pts.length; i++) cv.line(xAt(i - 1), yAt(values[i - 1]), xAt(i), yAt(values[i]), PDF_COLORS.gold, 1.4);
   pts.forEach((pt, i) => cv.circle(xAt(i), yAt(pt.balanceFils), pts.length > 40 ? 0.9 : 1.6, pt.balanceFils < 0 ? PDF_COLORS.coral : PDF_COLORS.navy));
-  cv.text(pts[0].label, plot.start, 60, plot.top + plot.height + 11, { size: 6.2, color: PDF_COLORS.muted }, 'start');
-  cv.text(pts[pts.length - 1].label, plot.start + plot.width - 60, 60, plot.top + plot.height + 11, { size: 6.2, color: PDF_COLORS.muted }, 'end');
-  const last = values[values.length - 1];
-  cv.text(`${model.labels.balance}: ${formatAmount(last)}`, p.start, p.width, p.top - 10, { size: 7.5, bold: true, color: PDF_COLORS.navy }, 'end');
+  cv.text(pts[0].label, plot.start, 60, plot.top + plot.height + 10, { size: 5.8, color: PDF_COLORS.muted }, 'start');
+  cv.text(pts[pts.length - 1].label, plot.start + plot.width - 60, 60, plot.top + plot.height + 10, { size: 5.8, color: PDF_COLORS.muted }, 'end');
+  cv.text(`${model.labels.balance}: ${formatAmount(values[values.length - 1])}`, box.start + 8, box.width - 16, box.top + 15, { size: 7, bold: true, color: PDF_COLORS.gold }, 'end');
 }
 
-function drawCategoryChart(cv: Canvas, box: Box, model: ReportModel) {
-  const p = chartFrame(cv, box, model.labels.byCategory);
-  const cats = model.charts.categories.slice(0, 7);
-  if (!cats.length) return;
-  const total = cats.reduce((s, c) => s + c.fils, 0) || 1;
-  const max = Math.max(1, ...cats.map((c) => c.fils));
-  const labelW = p.width * 0.34;
-  const valueW = 72;
-  const barMax = p.width - labelW - valueW - 8;
-  const rowH = Math.min(16, p.height / cats.length);
-  cats.forEach((c, i) => {
-    const y = p.top + i * rowH;
-    cv.text(cv.truncate(c.name, labelW - 4, { size: 7 }), p.start, labelW - 4, y + rowH * 0.62, { size: 7, color: PDF_COLORS.text });
-    const w = Math.max(1, (c.fils / max) * barMax);
-    cv.rect(p.start + labelW, y + rowH * 0.18, w, rowH * 0.6, CATEGORY_COLORS[i % CATEGORY_COLORS.length]);
-    const pct = Math.round((c.fils * 1000) / total);
-    cv.text(`${formatAmount(c.fils)}  ${Math.trunc(pct / 10)}.${pct % 10}%`, p.start + labelW + w + 4, valueW + 20, y + rowH * 0.62, { size: 6.6, color: PDF_COLORS.muted });
+/** Total inflow vs outflow (and unpaid commitments) for the whole period. */
+function drawInOutChart(cv: Canvas, box: Box, model: ReportModel) {
+  const p = chartFrame(cv, box, model.labels.inflowVsOutflow);
+  const bars = [
+    { label: model.labels.inflow, fils: model.charts.inflowFils, color: PDF_COLORS.gold },
+    { label: model.labels.outflow, fils: model.charts.outflowFils, color: PDF_COLORS.coral },
+    { label: model.labels.due, fils: model.charts.dueFils, color: PDF_COLORS.amber },
+  ];
+  const max = Math.max(1, ...bars.map((b) => b.fils));
+  const plotH = p.height - 30;
+  const slot = p.width / bars.length;
+  const bw = Math.min(26, slot * 0.5);
+  const base = p.top + 10 + plotH;
+  bars.forEach((b, i) => {
+    const h = (b.fils / max) * plotH;
+    const start = p.start + i * slot + (slot - bw) / 2;
+    if (h > 0) cv.rect(start, base - h, bw, h, b.color);
+    cv.text(formatAmount(b.fils), p.start + i * slot, slot, base - h - 3, { size: 5.8, bold: true, color: PDF_COLORS.text }, 'center');
+    cv.text(cv.truncate(b.label, slot - 2, { size: 6 }), p.start + i * slot, slot, base + 9, { size: 6, color: PDF_COLORS.muted }, 'center');
   });
-}
-
-function drawMonthlyChart(cv: Canvas, box: Box, model: ReportModel) {
-  const p = chartFrame(cv, box, model.labels.monthlyComparison);
-  const months = model.charts.monthly;
-  legend(cv, [
-    { label: model.labels.inflow, color: PDF_COLORS.gold },
-    { label: model.labels.outflow, color: PDF_COLORS.coral },
-    { label: model.labels.due, color: PDF_COLORS.amber },
-  ], p.start, p.top + 2);
-  if (!months.length) return;
-  const max = Math.max(1, ...months.flatMap((m) => [m.inflowFils, m.outflowFils, m.dueFils]));
-  const plotTop = p.top + 12;
-  const plotH = p.height - 34;
-  const slot = p.width / months.length;
-  const bw = Math.min(16, (slot - 8) / 3);
-  months.forEach((m, i) => {
-    const base = plotTop + plotH;
-    const center = p.start + i * slot + slot / 2;
-    const hi = (m.inflowFils / max) * plotH;
-    const ho = (m.outflowFils / max) * plotH;
-    const hd = (m.dueFils / max) * plotH;
-    if (hi > 0) cv.rect(center - bw * 1.5 - 1, base - hi, bw, hi, PDF_COLORS.gold);
-    if (ho > 0) cv.rect(center - bw / 2, base - ho, bw, ho, PDF_COLORS.coral);
-    if (hd > 0) cv.rect(center + bw / 2 + 1, base - hd, bw, hd, PDF_COLORS.amber);
-    const label = months.length > 8 ? m.label.replace(/^(\S{3})\S*/, '$1') : m.label;
-    cv.text(cv.truncate(label, slot - 2, { size: 6.4 }), p.start + i * slot, slot, base + 10, { size: 6.4, color: PDF_COLORS.muted }, 'center');
-  });
-  cv.line(p.start, plotTop + plotH, p.start + p.width, plotTop + plotH, PDF_COLORS.border, 0.6);
+  cv.line(p.start, base, p.start + p.width, base, PDF_COLORS.border, 0.6);
 }
 
 // ---------------------------------------------------------------------------
 // Tables
 
-function drawSimpleTable(cv: Canvas, model: ReportModel, headers: string[], rows: string[][], onNewPage: () => void) {
+function drawSimpleTable(cv: Canvas, headers: string[], rows: string[][], onNewPage: () => void) {
   const cols = layoutColumns(headers.map((h, i) => ({ key: `c${i}`, label: h, weight: i === 0 ? 2 : 1.4, numeric: i > 0 })));
   const needHeader = headerHeight(cv, cols).height;
   if (cv.y + needHeader + 20 > bottomLimit()) onNewPage();
@@ -494,7 +602,6 @@ function drawSimpleTable(cv: Canvas, model: ReportModel, headers: string[], rows
     }
     drawRow(cv, cols, row, prepared);
   });
-  void model;
   cv.y += 14;
 }
 
@@ -503,9 +610,9 @@ function drawLedgerSection(cv: Canvas, model: ReportModel, sectionIndex: number,
   const cols = layoutColumns(model.columns);
   const head = headerHeight(cv, cols).height;
   // Keep the title, stats and at least the header plus one row together.
-  if (cv.y + 20 + 58 + head + 24 > bottomLimit()) onNewPage();
-  sectionTitle(cv, section.title, 12);
-  drawStatCards(cv, section.stats, 40);
+  if (cv.y + 22 + 50 + head + 24 > bottomLimit()) onNewPage();
+  monthTitle(cv, section.title);
+  drawBalanceCards(cv, section.stats, 34);
   drawHeader(cv, cols);
   if (!section.rows.length) {
     cv.rect(MARGIN, cv.y, CONTENT_W, 20, PDF_COLORS.white, PDF_COLORS.border, 0.4);
@@ -523,7 +630,7 @@ function drawLedgerSection(cv: Canvas, model: ReportModel, sectionIndex: number,
     }
     drawRow(cv, cols, row, prepared);
   });
-  cv.y += 18;
+  cv.y += 16;
 }
 
 // ---------------------------------------------------------------------------
@@ -546,27 +653,32 @@ export async function renderReportPdf(model: ReportModel, fonts: ReportFonts): P
     drawRunningHeader(cv, model);
   };
 
-  // Page 1: header, summary, visual summary
+  // Page 1: header, summary cards, visual summary, then the ledger flows on.
   cv.addPage();
   drawCoverHeader(cv, model);
-  drawStatCards(cv, model.summary, 50);
-  sectionTitle(cv, model.labels.visualSummary, 11);
+  drawHeadlineCards(cv, model);
+  drawBalanceCards(cv, model.balances);
   const gap = 10;
-  const chartW = (CONTENT_W - gap) / 2;
-  const available = bottomLimit() - cv.y - gap;
-  const chartH = Math.max(120, available / 2);
-  const top1 = cv.y;
-  const top2 = cv.y + chartH + gap;
-  drawInOutChart(cv, { start: MARGIN, top: top1, width: chartW, height: chartH }, model);
-  drawTrendChart(cv, { start: MARGIN + chartW + gap, top: top1, width: chartW, height: chartH }, model);
-  drawCategoryChart(cv, { start: MARGIN, top: top2, width: chartW, height: chartH }, model);
-  drawMonthlyChart(cv, { start: MARGIN + chartW + gap, top: top2, width: chartW, height: chartH }, model);
+  const half = (CONTENT_W - gap) / 2;
+  const h1 = 150;
+  drawPeriodChart(cv, { start: MARGIN, top: cv.y, width: half, height: h1 }, model);
+  drawDonutChart(cv, { start: MARGIN + half + gap, top: cv.y, width: half, height: h1 }, model);
+  cv.y += h1 + gap;
+  const h2 = 104;
+  const wide = CONTENT_W * 0.62;
+  drawTrendChart(cv, { start: MARGIN, top: cv.y, width: wide, height: h2 }, model);
+  drawInOutChart(cv, { start: MARGIN + wide + gap, top: cv.y, width: CONTENT_W - wide - gap, height: h2 }, model);
+  cv.y += h2 + 16;
 
-  // Consolidated summary, then one ledger section per month (balances carried forward).
-  newPage();
-  sectionTitle(cv, model.labels.consolidated, 12);
-  drawSimpleTable(cv, model, model.consolidated.headers, model.consolidated.rows, newPage);
-  sectionTitle(cv, model.labels.detailedLedger, 13);
+  // Consolidated summary (several months), then one ledger section per month with carried balances.
+  if (model.sections.length > 1) {
+    if (cv.y + 70 > bottomLimit()) newPage();
+    sectionTitle(cv, model.labels.consolidated);
+    drawSimpleTable(cv, model.consolidated.headers, model.consolidated.rows, newPage);
+  }
+  // Keep the heading together with the first month title, cards, table header and a row.
+  if (cv.y + 150 > bottomLimit()) newPage();
+  sectionTitle(cv, model.labels.transactionsDetail, 12);
   model.sections.forEach((_, i) => drawLedgerSection(cv, model, i, newPage));
 
   drawFooters(cv, model);

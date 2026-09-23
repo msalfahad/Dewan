@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { isFirebaseConfigured } from '../data/firebase';
 import { useI18n } from '../i18n/I18nProvider';
 import { LanguageSwitcher } from './components/common';
+import { Icon } from './components/Icon';
 
 export function LoginScreen({ onEmailAuth, onLocal }: { onEmailAuth: (email: string, password: string, create: boolean) => Promise<void>; onLocal: () => void }) {
   const { t } = useI18n();
@@ -31,7 +32,9 @@ export function LoginScreen({ onEmailAuth, onLocal }: { onEmailAuth: (email: str
           <LanguageSwitcher />
         </div>
         <div>
-          <img className="logo" src="./icons/icon.svg" alt="" />
+          <div className="logo">
+            <Icon name="diwan" size={40} />
+          </div>
           <p className="tag" style={{ marginBottom: 0 }}>
             {t('login.welcome')}
           </p>

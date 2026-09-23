@@ -63,7 +63,13 @@ export interface ReportModel {
   monthsLabel: string;
   monthsValue: string;
   currencyNote: string;
+  /** Opening, inflow, outflow, closing, unpaid, balance after commitments. */
   summary: ReportStat[];
+  /** Headline cards as in the design: total inflow, total outflow, net flow. */
+  headline: (ReportStat & { icon: string })[];
+  /** Balance cards: opening, closing, unpaid commitments, balance after commitments. */
+  balances: ReportStat[];
+  tagline: string;
   labels: {
     visualSummary: string;
     inflowVsOutflow: string;
@@ -78,6 +84,10 @@ export interface ReportModel {
     due: string;
     month: string;
     continued: string;
+    periodChart: string;
+    outflowByCategory: string;
+    transactionsDetail: string;
+    issuedOn: string;
   };
   columns: ReportColumn[];
   consolidated: { headers: string[]; rows: string[][] };
@@ -104,16 +114,17 @@ export interface ReportInput {
   generatedOn?: string;
 }
 
+/** Relative widths tuned for A4 portrait; the balance column always keeps a reserved share. */
 const COLUMN_WEIGHTS: Record<ColumnKey, number> = {
-  number: 3.2,
-  date: 8.5,
-  description: 22,
+  number: 3.4,
+  date: 9.6,
+  description: 21,
   category: 11,
-  counterparty: 12,
-  paymentMethod: 8.5,
+  counterparty: 11,
+  paymentMethod: 9,
   inflow: 9.5,
   outflow: 9.5,
-  balance: 11,
+  balance: 11.5,
 };
 
 const NUMERIC: ColumnKey[] = ['number', 'inflow', 'outflow', 'balance'];
@@ -283,7 +294,23 @@ export function buildReportModel(input: ReportInput): ReportModel {
       { label: L('reports.unpaidCommitments'), value: money(language, period.unpaidFils), tone: 'amber' },
       { label: L('reports.balanceAfterCommitments'), value: money(language, period.balanceAfterCommitmentsFils), tone: 'blue' },
     ],
+    headline: [
+      { label: L('reports.totalInflow'), value: money(language, period.inflowFils), tone: 'gold', icon: 'arrowOut' },
+      { label: L('reports.totalOutflow'), value: money(language, period.outflowFils), tone: 'coral', icon: 'arrowIn' },
+      { label: L('reports.netFlow'), value: money(language, period.inflowFils - period.outflowFils), tone: 'navy', icon: 'bars' },
+    ],
+    balances: [
+      { label: L('reports.openingBalance'), value: money(language, period.openingFils), tone: 'navy' },
+      { label: L('reports.closingBalance'), value: money(language, period.closingFils), tone: 'navy' },
+      { label: L('reports.unpaidCommitments'), value: money(language, period.unpaidFils), tone: 'amber' },
+      { label: L('reports.balanceAfterCommitments'), value: money(language, period.balanceAfterCommitmentsFils), tone: 'blue' },
+    ],
+    tagline: L('app.tagline'),
     labels: {
+      periodChart: L('reports.periodChart'),
+      outflowByCategory: L('reports.outflowByCategory'),
+      transactionsDetail: L('reports.transactionsDetail'),
+      issuedOn: L('reports.issuedOn'),
       visualSummary: L('reports.visualSummary'),
       inflowVsOutflow: L('reports.inflowVsOutflow'),
       balanceTrend: L('reports.balanceTrend'),

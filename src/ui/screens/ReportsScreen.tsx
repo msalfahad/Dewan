@@ -1,38 +1,55 @@
 import { useMemo, useState } from 'react';
 import { useAppData } from '../../data/AppDataProvider';
-import { monthKeyOf, yearOf } from '../../domain/dates';
+import { analyzeCategories } from '../../domain/analysis';
+import { categoryName } from '../../domain/categories';
+import { compareMonthKeys, shiftMonth } from '../../domain/dates';
 import { buildReportModel, type ReportLanguage } from '../../pdf/reportModel';
 import { monthName, translate } from '../../i18n/translate';
 import { useI18n } from '../../i18n/I18nProvider';
+import { BottomSheet } from '../components/BottomSheet';
+import { CategoryDonut, MonthlyFlowChart } from '../components/Charts';
+import { Stat } from '../components/common';
 import { Icon } from '../components/Icon';
+import { CategoryAnalysis } from './AnalysisScreen';
 import { ReportPreview } from './ReportPreview';
 
-/** Choose any months (one, several, non-consecutive, across years) and the report language, then preview / print / download PDF. */
+function monthsBetween(from: string, to: string): string[] {
+  const [a, b] = compareMonthKeys(from, to) <= 0 ? [from, to] : [to, from];
+  const out: string[] = [];
+  for (let m = a; m <= b && out.length < 120; m = shiftMonth(m, 1)) out.push(m);
+  return out;
+}
+
+/**
+ * Reports: choose a From/To period, then toggle individual months (one, several, non-consecutive,
+ * across years), pick the report language (عربي / English / عربي + English), preview, print or create the PDF.
+ */
 export function ReportsScreen({ initialMonth }: { initialMonth: string }) {
-  const { t, lang } = useI18n();
+  const { t, lang, month: monthText } = useI18n();
   const { ledger, categoriesById, openingBalance, today } = useAppData();
-  const [months, setMonths] = useState<string[]>([initialMonth]);
+  const [from, setFrom] = useState(shiftMonth(initialMonth, -3));
+  const [to, setTo] = useState(initialMonth);
+  const range = useMemo(() => monthsBetween(from, to), [from, to]);
+  const [months, setMonths] = useState<string[]>(range);
   const [language, setLanguage] = useState<ReportLanguage>(lang);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState(false);
 
-  const years = useMemo(() => {
-    const set = new Set(ledger.rows.map((r) => yearOf(r.date)));
-    set.add(yearOf(today));
-    set.add(initialMonth.slice(0, 4));
-    return [...set].sort().reverse();
-  }, [ledger, today, initialMonth]);
-  const active = useMemo(() => new Set(ledger.rows.map((r) => monthKeyOf(r.date))), [ledger]);
-
-  const toggle = (m: string) => setMonths((cur) => (cur.includes(m) ? cur.filter((x) => x !== m) : [...cur, m].sort()));
-  const toggleYear = (y: string) => {
-    const all = Array.from({ length: 12 }, (_, i) => `${y}-${String(i + 1).padStart(2, '0')}`).filter((m) => active.has(m));
-    const on = all.length > 0 && all.every((m) => months.includes(m));
-    setMonths((cur) => (on ? cur.filter((m) => !all.includes(m)) : [...new Set([...cur, ...all])].sort()));
+  const setRange = (f: string, tt: string) => {
+    setFrom(f);
+    setTo(tt);
+    setMonths(monthsBetween(f, tt));
   };
+  const toggle = (m: string) => setMonths((cur) => (cur.includes(m) ? cur.filter((x) => x !== m) : [...cur, m].sort()));
 
   const input = { ledger, months, language, categoriesById, openingBalance, generatedOn: today };
-  const model = useMemo(() => (months.length ? buildReportModel({ ledger, months, language, categoriesById, openingBalance, generatedOn: today }) : null), [ledger, months, language, categoriesById, openingBalance, today]);
+  const model = useMemo(
+    () => (months.length ? buildReportModel({ ledger, months, language, categoriesById, openingBalance, generatedOn: today }) : null),
+    [ledger, months, language, categoriesById, openingBalance, today],
+  );
+  const period = model?.period;
+  const outflowCats = useMemo(() => (period ? analyzeCategories(period.rows, categoriesById).outflow.filter((c) => c.paidFils > 0) : []), [period, categoriesById]);
 
   const download = async () => {
     setBusy(true);
@@ -49,37 +66,70 @@ export function ReportsScreen({ initialMonth }: { initialMonth: string }) {
     }
   };
 
+  const print = () => {
+    document.body.classList.add('printing-report');
+    window.print();
+    document.body.classList.remove('printing-report');
+  };
+
   return (
     <div className="stack">
-      <h2 className="screen-title no-print">{t('reports.screenTitle')}</h2>
-      <div className="card stack no-print">
-        <h3>{t('reports.selectMonths')}</h3>
-        {years.map((y) => (
-          <div key={y} className="stack" style={{ gap: 6 }}>
-            <div className="row">
-              <b className="num">{y}</b>
-              <button type="button" className="btn small ghost" onClick={() => toggleYear(y)}>
-                {t('reports.selectYear')}
-              </button>
-            </div>
-            <div className="chips">
-              {Array.from({ length: 12 }, (_, i) => {
-                const m = `${y}-${String(i + 1).padStart(2, '0')}`;
-                return (
-                  <button key={m} type="button" className="chip" aria-pressed={months.includes(m)} onClick={() => toggle(m)} style={active.has(m) ? undefined : { opacity: 0.55 }}>
-                    {monthName(lang, i)}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-        {months.length > 0 && (
-          <button type="button" className="btn small ghost" onClick={() => setMonths([])}>
-            {t('reports.clearSelection')}
-          </button>
-        )}
+      <div className="range">
+        <label>
+          <Icon name="calendar" size={18} />
+          <span>
+            {t('reports.from')} {monthText(from)}
+          </span>
+          <input type="month" aria-label={t('reports.from')} value={from} onChange={(e) => e.target.value && setRange(e.target.value, to)} />
+        </label>
+        <label>
+          <Icon name="calendar" size={18} />
+          <span>
+            {t('reports.to')} {monthText(to)}
+          </span>
+          <input type="month" aria-label={t('reports.to')} value={to} onChange={(e) => e.target.value && setRange(from, e.target.value)} />
+        </label>
+      </div>
 
+      <div className="chips" role="group" aria-label={t('reports.selectMonths')}>
+        {range.map((m) => (
+          <button key={m} type="button" className="chip" aria-pressed={months.includes(m)} onClick={() => toggle(m)}>
+            {monthName(lang, Number(m.slice(5)) - 1)}
+            {range[0].slice(0, 4) !== range[range.length - 1].slice(0, 4) ? ` ${m.slice(0, 4)}` : ''}
+          </button>
+        ))}
+      </div>
+
+      {period ? (
+        <>
+          <div className="stat-duo">
+            <Stat big tone="inflow" icon="arrowOut" label={t('reports.totalInflow')} fils={period.inflowFils} />
+            <Stat big tone="outflow" icon="arrowIn" label={t('reports.totalOutflow')} fils={period.outflowFils} />
+          </div>
+          <Stat big tone="net" icon="bars" label={t('reports.netFlow')} fils={period.inflowFils - period.outflowFils} />
+          <div className="stat-duo">
+            <Stat label={t('reports.openingBalance')} fils={period.openingFils} />
+            <Stat label={t('reports.closingBalance')} fils={period.closingFils} />
+            <Stat tone="due" icon="clock" label={t('reports.unpaidCommitments')} fils={period.unpaidFils} />
+            <Stat label={t('reports.balanceAfterCommitments')} fils={period.balanceAfterCommitmentsFils} />
+          </div>
+
+          <div className="card">
+            <h3 style={{ justifyContent: 'center' }}>{t('reports.periodChart')}</h3>
+            <MonthlyFlowChart data={period.sections.map((s) => ({ month: s.month, inflowFils: s.inflowFils, outflowFils: s.outflowFils, dueFils: s.unpaidFils }))} />
+          </div>
+          {outflowCats.length > 0 && (
+            <div className="card">
+              <h3>{t('reports.outflowByCategory')}</h3>
+              <CategoryDonut items={outflowCats.map((c) => ({ name: categoryName(c, lang), fils: c.paidFils }))} />
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="warning">{t('reports.noMonths')}</div>
+      )}
+
+      <div className="card stack">
         <div className="field">
           <span>
             {t('reports.language')} / {translate(lang === 'ar' ? 'en' : 'ar', 'reports.language')}
@@ -92,27 +142,31 @@ export function ReportsScreen({ initialMonth }: { initialMonth: string }) {
             ))}
           </div>
         </div>
-
-        <div className="row">
-          <button type="button" className="btn primary" disabled={!months.length || busy} onClick={() => void download()}>
-            <Icon name="download" size={18} /> {busy ? t('reports.generating') : t('reports.downloadPdf')}
+        <div className="stat-duo">
+          <button type="button" className="btn outline-gold" disabled={!model} onClick={() => setPreview(true)}>
+            <Icon name="eye" size={18} /> {t('reports.previewReport')}
           </button>
-          <button type="button" className="btn" disabled={!months.length} onClick={() => window.print()}>
-            <Icon name="print" size={18} /> {t('reports.print')}
+          <button type="button" className="btn outline-gold" disabled={!model || busy} onClick={() => void download()}>
+            <Icon name="pdf" size={18} /> {busy ? t('reports.generating') : t('reports.createPdf')}
           </button>
         </div>
         {error && <div className="warning">{error}</div>}
       </div>
 
-      {model ? (
-        <>
-          <h3 className="no-print" style={{ margin: 0 }}>
-            {t('reports.preview')}
-          </h3>
+      {months.length > 0 && <CategoryAnalysis key={months.join(',')} months={months} />}
+
+      {preview && model && (
+        <BottomSheet title={t('reports.preview')} onClose={() => setPreview(false)} wide>
+          <div className="row no-print" style={{ marginBottom: 12 }}>
+            <button type="button" className="btn primary" disabled={busy} onClick={() => void download()}>
+              <Icon name="download" size={18} /> {t('reports.downloadPdf')}
+            </button>
+            <button type="button" className="btn" onClick={print}>
+              <Icon name="print" size={18} /> {t('reports.print')}
+            </button>
+          </div>
           <ReportPreview model={model} />
-        </>
-      ) : (
-        <div className="warning">{t('reports.noMonths')}</div>
+        </BottomSheet>
       )}
     </div>
   );

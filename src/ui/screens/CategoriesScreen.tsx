@@ -49,7 +49,7 @@ export function CategoriesScreen({ onBack }: { onBack: () => void }) {
         <button type="button" className="icon-btn" onClick={onBack} aria-label={t('common.back')}>
           <Icon name="prev" />
         </button>
-        <h2 className="screen-title">{t('categories.title')}</h2>
+        <h2 className="section-title" style={{ margin: 0 }}>{t('categories.title')}</h2>
       </div>
       {section('inflow')}
       {section('outflow')}

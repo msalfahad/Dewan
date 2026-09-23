@@ -23,7 +23,6 @@ export function SettingsScreen({ account, onSignOut, onOpenCategories, onOpenRec
 
   return (
     <div className="stack">
-      <h2 className="screen-title">{t('settings.title')}</h2>
       <div className="card stack">
         <h3>
           <span>

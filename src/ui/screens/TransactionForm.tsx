@@ -10,6 +10,7 @@ import { monthLabel, translate } from '../../i18n/translate';
 import { BottomSheet } from '../components/BottomSheet';
 import { Icon } from '../components/Icon';
 import { CategoryEditor } from './CategoryEditor';
+import { CategoryIcon } from '../components/CategoryIcon';
 
 type OutflowTab = 'salary' | 'maintenance' | 'groceries' | 'other' | 'new';
 
@@ -146,7 +147,7 @@ export function TransactionForm({ existing, initialType = 'outflow', onClose, on
           <div className="tabs" role="group" aria-label={t('add.category')}>
             {(['salary', 'maintenance', 'groceries'] as const).map((k) => (
               <button key={k} type="button" aria-pressed={tab === k} onClick={() => chooseTab(k)}>
-                {categoriesById.get(TAB_CATEGORY[k])?.icon} {t(`add.tab${k[0].toUpperCase()}${k.slice(1)}`)}
+                <CategoryIcon id={TAB_CATEGORY[k]} size={16} /> {t(`add.tab${k[0].toUpperCase()}${k.slice(1)}`)}
               </button>
             ))}
             <button type="button" aria-pressed={tab === 'other'} onClick={() => chooseTab('other')}>

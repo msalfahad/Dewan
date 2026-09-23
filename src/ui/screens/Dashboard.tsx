@@ -1,36 +1,68 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useAppData } from '../../data/AppDataProvider';
-import { analyzeCategories, monthlyFlows } from '../../domain/analysis';
+import { analyzeCategories, monthlyFlows, type MonthlyFlow } from '../../domain/analysis';
 import { categoryName } from '../../domain/categories';
-import { formatDateDMY } from '../../domain/dates';
+import { formatDateDMY, shiftMonth } from '../../domain/dates';
 import type { LedgerRow } from '../../domain/ledger';
 import { buildMonthSection } from '../../domain/periods';
 import { describe } from '../../domain/text';
 import { useI18n } from '../../i18n/I18nProvider';
 import { BalanceTrendChart, CategoryDonut, MonthlyFlowChart } from '../components/Charts';
-import { EmptyState, Kpi } from '../components/common';
-import { LedgerList } from './LedgerViews';
-import { CHART } from '../theme';
+import { EmptyState, Money, Stat } from '../components/common';
+import { Icon } from '../components/Icon';
+
+/** Months ending at `month` (inclusive), oldest first, filled with zeros where there was no activity. */
+export function flowWindow(rows: readonly LedgerRow[], month: string, size = 4): MonthlyFlow[] {
+  const byMonth = new Map(monthlyFlows(rows).map((f) => [f.month, f]));
+  return Array.from({ length: size }, (_, i) => shiftMonth(month, i - size + 1)).map((m) => byMonth.get(m) ?? { month: m, inflowFils: 0, outflowFils: 0, dueFils: 0 });
+}
+
+export function RecentList({ rows, onOpen }: { rows: LedgerRow[]; onOpen: (r: LedgerRow) => void }) {
+  const { t, lang } = useI18n();
+  return (
+    <div className="recent">
+      {rows.map((r) => {
+        const isIn = r.inflowFils > 0;
+        const cls = !r.applied ? 'pending' : isIn ? 'in' : 'out';
+        return (
+          <button type="button" key={r.key} onClick={() => onOpen(r)}>
+            <span className="d">
+              {r.kind === 'opening' ? t('ledger.opening') : describe(r.transaction!, lang)}
+              <small className="num">{formatDateDMY(r.date)}</small>
+            </span>
+            <span className={`a ${cls === 'out' ? 'coral' : cls === 'in' ? 'gold' : 'amber'}`}>
+              <Money fils={isIn ? r.inflowFils : r.outflowFils} />
+              <small>
+                {t('columns.balance')}: <Money fils={r.balanceAfterFils} />
+              </small>
+            </span>
+            <span className={`arrow ${cls}`}>
+              <Icon name={isIn ? 'arrowIn' : 'arrowOut'} size={18} />
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export function Dashboard({ month, onOpen, onAdd, onViewLedger, onLoadDemo }: { month: string; onOpen: (r: LedgerRow) => void; onAdd: () => void; onViewLedger: () => void; onLoadDemo: () => void }) {
-  const { t, lang, money, month: monthText } = useI18n();
+  const { t, lang } = useI18n();
   const { ledger, categoriesById, openingBalance } = useAppData();
-  const [scope, setScope] = useState<'month' | 'all'>('month');
   const s = ledger.summary;
   const section = useMemo(() => buildMonthSection(ledger, month), [ledger, month]);
-  const scopedRows = scope === 'month' ? section.rows : ledger.rows;
-  const flows = useMemo(() => monthlyFlows(ledger.rows).slice(-12), [ledger]);
-  const analysis = useMemo(() => analyzeCategories(scopedRows, categoriesById), [scopedRows, categoriesById]);
+  const flows = useMemo(() => flowWindow(ledger.rows, month), [ledger, month]);
+  const analysis = useMemo(() => analyzeCategories(section.rows, categoriesById), [section, categoriesById]);
   const trend = useMemo(
     () =>
-      scopedRows.map((r) => ({
+      ledger.rows.map((r) => ({
         label: formatDateDMY(r.date),
         balanceFils: r.balanceAfterFils,
         description: r.kind === 'opening' ? t('ledger.opening') : describe(r.transaction!, lang),
       })),
-    [scopedRows, t, lang],
+    [ledger, t, lang],
   );
-  const latest = ledger.rows.slice(-6).reverse();
+  const latest = ledger.rows.slice(-5).reverse();
 
   if (ledger.rows.length === 0 && !openingBalance) {
     return (
@@ -49,58 +81,61 @@ export function Dashboard({ month, onOpen, onAdd, onViewLedger, onLoadDemo }: { 
     );
   }
 
-  const inflow = scope === 'month' ? section.inflowFils : s.totalInflowFils;
-  const outflow = scope === 'month' ? section.outflowFils : s.totalOutflowFils;
+  const paidOutflow = analysis.outflow.filter((c) => c.paidFils > 0);
 
   return (
     <div className="stack">
-      <div className="grid kpis">
-        <Kpi hero label={t('dashboard.currentBalance')} fils={s.currentBalanceFils} />
-        <Kpi label={`${t('dashboard.totalInflow')}${scope === 'month' ? ` · ${monthText(month)}` : ''}`} fils={inflow} color={CHART.inflow} />
-        <Kpi label={`${t('dashboard.totalOutflow')}${scope === 'month' ? ` · ${monthText(month)}` : ''}`} fils={outflow} color={CHART.outflow} />
-        <Kpi label={t('dashboard.unpaidCommitments')} fils={s.unpaidCommitmentsFils} color={CHART.due} />
-        <Kpi label={t('dashboard.balanceAfterCommitments')} fils={s.balanceAfterCommitmentsFils} color="#7189A8" hint={s.pendingInflowFils ? `${t('dashboard.pendingInflow')}: ${money(s.pendingInflowFils)}` : undefined} />
+      <div className="card hero">
+        <div className="body">
+          <div className="label">{t('dashboard.currentBalance')}</div>
+          <div className="value" data-testid="current-balance">
+            <Money fils={s.currentBalanceFils} />
+          </div>
+          <div className="sub">
+            {t('dashboard.balanceAfterCommitments')}: <b><Money fils={s.balanceAfterCommitmentsFils} /></b>
+          </div>
+        </div>
+        <span className="glyph">
+          <Icon name="wallet" size={58} />
+        </span>
       </div>
 
-      <div className="segmented" role="group">
-        <button type="button" aria-pressed={scope === 'month'} onClick={() => setScope('month')}>
-          {monthText(month)}
-        </button>
-        <button type="button" aria-pressed={scope === 'all'} onClick={() => setScope('all')}>
-          {t('common.allTime')}
-        </button>
+      <div className="stat-trio">
+        <Stat tone="inflow" icon="arrowOut" label={t('dashboard.totalInflow')} fils={section.inflowFils} />
+        <Stat tone="outflow" icon="arrowIn" label={t('dashboard.totalOutflow')} fils={section.outflowFils} />
+        <Stat tone="due" icon="clock" label={t('dashboard.unpaidCommitments')} fils={s.unpaidCommitmentsFils} />
       </div>
+
+      <div className="card">
+        <h3 style={{ justifyContent: 'center' }}>{t('home.periodChart')}</h3>
+        <MonthlyFlowChart data={flows} showDue={false} />
+      </div>
+
+      <div className="card">
+        <h3>
+          {t('home.recent')}
+          <button type="button" className="link" onClick={onViewLedger}>
+            {t('home.viewAll')}
+          </button>
+        </h3>
+        <RecentList rows={latest} onOpen={onOpen} />
+      </div>
+
+      <button type="button" className="btn wide" onClick={onAdd}>
+        <Icon name="plusCircle" size={22} /> {t('home.addTransaction')}
+      </button>
 
       <div className="grid two">
         <div className="card">
-          <h3>{t('dashboard.monthlyChart')}</h3>
-          <MonthlyFlowChart data={flows} />
+          <h3>{t('dashboard.categoryChart')}</h3>
+          {paidOutflow.length ? <CategoryDonut items={paidOutflow.map((c) => ({ name: categoryName(c, lang), fils: c.paidFils }))} /> : <EmptyState text={t('analysis.empty')} />}
         </div>
         <div className="card">
-          <h3>{t('dashboard.categoryChart')}</h3>
-          {analysis.outflow.some((c) => c.paidFils > 0) ? (
-            <CategoryDonut items={analysis.outflow.filter((c) => c.paidFils > 0).map((c) => ({ name: `${c.icon} ${categoryName(c, lang)}`, fils: c.paidFils }))} />
-          ) : (
-            <EmptyState text={t('analysis.empty')} />
-          )}
+          <h3>
+            {t('dashboard.balanceTrend')} <small className="muted">{t('dashboard.balanceTrendHint')}</small>
+          </h3>
+          <BalanceTrendChart points={trend} />
         </div>
-      </div>
-
-      <div className="card">
-        <h3>
-          {t('dashboard.balanceTrend')} <small className="muted">{t('dashboard.balanceTrendHint')}</small>
-        </h3>
-        <BalanceTrendChart points={trend} />
-      </div>
-
-      <div className="card">
-        <h3>
-          {t('dashboard.latest')}
-          <button type="button" className="btn small ghost" onClick={onViewLedger}>
-            {t('dashboard.viewAll')}
-          </button>
-        </h3>
-        <LedgerList rows={latest} onOpen={onOpen} />
       </div>
     </div>
   );

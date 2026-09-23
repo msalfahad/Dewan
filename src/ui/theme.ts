@@ -1,10 +1,10 @@
-/** Chart palette: champagne gold = inflow, coral red = outflow, amber = due. Secondary: ivory, silver, muted blue. No green. */
+/** Royal Sapphire chart palette: champagne gold = inflow, coral = outflow, amber = due. Secondary: blue, ivory, silver. No green. */
 export const CHART = {
-  inflow: '#D4B483',
-  outflow: '#FF7B6B',
-  due: '#F5B23D',
-  balance: '#E8D2A6',
-  grid: '#26345A',
-  axis: '#9AA3B5',
-  secondary: ['#FF7B6B', '#D4B483', '#F5B23D', '#F3EBDD', '#B8BEC8', '#7189A8', '#A58E6A', '#5B6F8E', '#D9C7A7'],
+  inflow: '#D2AD68',
+  outflow: '#DE6B70',
+  due: '#D5A24A',
+  balance: '#E6C98A',
+  grid: '#1B2842',
+  axis: '#AEB6C4',
+  secondary: ['#3F6AA8', '#DE6B70', '#D2AD68', '#E6C98A', '#AEB6C4', '#F5F1E8', '#8A6D3B', '#6F87A8', '#D5A24A'],
 };

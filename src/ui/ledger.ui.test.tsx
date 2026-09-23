@@ -6,7 +6,7 @@ import { I18nProvider } from '../i18n/I18nProvider';
 import { coffeeBeans, OPENING_1000 } from '../test/fixtures';
 import { LedgerList, LedgerTable } from './screens/LedgerViews';
 import { useAppData } from '../data/AppDataProvider';
-import { Kpi } from './components/common';
+import { Stat } from './components/common';
 import type { Lang } from '../config/app';
 
 afterEach(cleanup);
@@ -25,7 +25,7 @@ function Views() {
       <div data-testid="list">
         <LedgerList rows={ledger.rows} onOpen={() => undefined} />
       </div>
-      <Kpi label="current" fils={ledger.summary.currentBalanceFils} />
+      <Stat label="current" fils={ledger.summary.currentBalanceFils} testId="kpi-current" />
     </>
   );
 }

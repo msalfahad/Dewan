@@ -10,7 +10,7 @@ import { FilterPanel } from './FilterPanel';
 import { LedgerList, LedgerTable } from './LedgerViews';
 
 /** سجل حساب الديوان / Diwaniya Account Ledger — newest first, balance after every row. */
-export function LedgerScreen({ filter, onFilter, onOpen }: { filter: LedgerFilter; onFilter: (f: LedgerFilter) => void; onOpen: (row: LedgerRow) => void }) {
+export function LedgerScreen({ filter, onFilter, onOpen, onAdd }: { filter: LedgerFilter; onFilter: (f: LedgerFilter) => void; onOpen: (row: LedgerRow) => void; onAdd: () => void }) {
   const { t } = useI18n();
   const { ledger, categoriesById, openingBalance, transactions } = useAppData();
   const [showFilters, setShowFilters] = useState(false);
@@ -27,7 +27,6 @@ export function LedgerScreen({ filter, onFilter, onOpen }: { filter: LedgerFilte
 
   return (
     <div className="stack">
-      <h2 className="screen-title">{t('ledger.title')}</h2>
       <div className="row">
         <label className="field" style={{ flex: 1, minWidth: 220 }}>
           <span className="sr-only">{t('common.search')}</span>
@@ -88,6 +87,10 @@ export function LedgerScreen({ filter, onFilter, onOpen }: { filter: LedgerFilte
           </div>
         </>
       )}
+
+      <button type="button" className="btn wide" onClick={onAdd}>
+        <Icon name="plusCircle" size={22} /> {t('home.addTransaction')}
+      </button>
     </div>
   );
 }

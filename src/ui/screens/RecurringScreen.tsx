@@ -57,7 +57,7 @@ export function RecurringScreen({ month, onBack, onToast }: { month: string; onB
         <button type="button" className="icon-btn" onClick={onBack} aria-label={t('common.back')}>
           <Icon name="prev" />
         </button>
-        <h2 className="screen-title">{t('recurring.title')}</h2>
+        <h2 className="section-title" style={{ margin: 0 }}>{t('recurring.title')}</h2>
       </div>
       <div className="card stack">
         <button type="button" className="btn primary" onClick={() => void generate()}>
