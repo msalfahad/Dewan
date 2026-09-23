@@ -31,7 +31,7 @@ export function SettingsScreen({ account, onSignOut, onOpenCategories, onOpenRec
   };
 
   return (
-    <div className="stack">
+    <div className="stack settings-grid">
       <div className="card stack">
         <h3>
           <span>

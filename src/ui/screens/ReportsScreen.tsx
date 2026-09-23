@@ -102,18 +102,19 @@ export function ReportsScreen({ initialMonth }: { initialMonth: string }) {
 
       {period ? (
         <>
-          <div className="stat-duo">
+          <div className="stat-duo report-head">
             <Stat big tone="inflow" icon="arrowOut" label={t('reports.totalInflow')} fils={period.inflowFils} />
             <Stat big tone="outflow" icon="arrowIn" label={t('reports.totalOutflow')} fils={period.outflowFils} />
           </div>
           <Stat big tone="net" icon="bars" label={t('reports.netFlow')} fils={period.inflowFils - period.outflowFils} />
-          <div className="stat-duo">
+          <div className="stat-duo report-balances">
             <Stat label={t('reports.openingBalance')} fils={period.openingFils} />
             <Stat label={t('reports.closingBalance')} fils={period.closingFils} />
             <Stat tone="due" icon="clock" label={t('reports.unpaidCommitments')} fils={period.unpaidFils} />
             <Stat label={t('reports.balanceAfterCommitments')} fils={period.balanceAfterCommitmentsFils} />
           </div>
 
+          <div className="grid two">
           <div className="card">
             <h3 style={{ justifyContent: 'center' }}>{t('reports.periodChart')}</h3>
             <MonthlyFlowChart data={period.sections.map((s) => ({ month: s.month, inflowFils: s.inflowFils, outflowFils: s.outflowFils, dueFils: s.unpaidFils }))} />
@@ -124,6 +125,7 @@ export function ReportsScreen({ initialMonth }: { initialMonth: string }) {
               <CategoryDonut items={outflowCats.map((c) => ({ name: categoryName(c, lang), fils: c.paidFils }))} />
             </div>
           )}
+          </div>
         </>
       ) : (
         <div className="warning">{t('reports.noMonths')}</div>

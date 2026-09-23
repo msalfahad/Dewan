@@ -62,7 +62,7 @@ export function Dashboard({ month, onOpen, onAdd, onViewLedger, onLoadDemo }: { 
       })),
     [ledger, t, lang],
   );
-  const latest = ledger.rows.slice(-5).reverse();
+  const latest = ledger.rows.slice(-6).reverse();
 
   if (ledger.rows.length === 0 && !openingBalance) {
     return (
@@ -84,8 +84,8 @@ export function Dashboard({ month, onOpen, onAdd, onViewLedger, onLoadDemo }: { 
   const paidOutflow = analysis.outflow.filter((c) => c.paidFils > 0);
 
   return (
-    <div className="stack">
-      <div className="card hero">
+    <div className="dash">
+      <div className="card hero a-hero">
         <div className="body">
           <div className="label">{t('dashboard.currentBalance')}</div>
           <div className="value" data-testid="current-balance">
@@ -100,18 +100,18 @@ export function Dashboard({ month, onOpen, onAdd, onViewLedger, onLoadDemo }: { 
         </span>
       </div>
 
-      <div className="stat-trio">
+      <div className="stat-trio a-trio">
         <Stat tone="inflow" icon="arrowOut" label={t('dashboard.totalInflow')} fils={section.inflowFils} />
         <Stat tone="outflow" icon="arrowIn" label={t('dashboard.totalOutflow')} fils={section.outflowFils} />
         <Stat tone="due" icon="clock" label={t('dashboard.unpaidCommitments')} fils={s.unpaidCommitmentsFils} />
       </div>
 
-      <div className="card">
+      <div className="card a-chart">
         <h3 style={{ justifyContent: 'center' }}>{t('home.periodChart')}</h3>
         <MonthlyFlowChart data={flows} showDue={false} />
       </div>
 
-      <div className="card">
+      <div className="card a-recent">
         <h3>
           {t('home.recent')}
           <button type="button" className="link" onClick={onViewLedger}>
@@ -121,21 +121,19 @@ export function Dashboard({ month, onOpen, onAdd, onViewLedger, onLoadDemo }: { 
         <RecentList rows={latest} onOpen={onOpen} />
       </div>
 
-      <button type="button" className="btn wide" onClick={onAdd}>
+      <button type="button" className="btn wide a-add" onClick={onAdd}>
         <Icon name="plusCircle" size={22} /> {t('home.addTransaction')}
       </button>
 
-      <div className="grid two">
-        <div className="card">
-          <h3>{t('dashboard.categoryChart')}</h3>
-          {paidOutflow.length ? <CategoryDonut items={paidOutflow.map((c) => ({ name: categoryName(c, lang), fils: c.paidFils }))} /> : <EmptyState text={t('analysis.empty')} />}
-        </div>
-        <div className="card">
-          <h3>
-            {t('dashboard.balanceTrend')} <small className="muted">{t('dashboard.balanceTrendHint')}</small>
-          </h3>
-          <BalanceTrendChart points={trend} />
-        </div>
+      <div className="card a-donut">
+        <h3>{t('dashboard.categoryChart')}</h3>
+        {paidOutflow.length ? <CategoryDonut items={paidOutflow.map((c) => ({ name: categoryName(c, lang), fils: c.paidFils }))} /> : <EmptyState text={t('analysis.empty')} />}
+      </div>
+      <div className="card a-trend">
+        <h3>
+          {t('dashboard.balanceTrend')} <small className="muted">{t('dashboard.balanceTrendHint')}</small>
+        </h3>
+        <BalanceTrendChart points={trend} />
       </div>
     </div>
   );

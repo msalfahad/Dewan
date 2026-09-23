@@ -363,3 +363,94 @@ table.r-table td .l2 { display: block; color: #5b6475; }
 .row-actions.compact { padding: 0; justify-content: center; }
 .row-actions.compact .act { padding: 5px 8px; }
 table.ledger td.actions-col { white-space: nowrap; }
+
+/* ======================================================================
+   Laptop / desktop (Windows & Mac browsers) — from 1024px wide.
+   Sidebar navigation, wider multi-column layout, centred dialogs.
+   Logical properties keep it mirrored: sidebar on the right in Arabic, left in English.
+   ====================================================================== */
+.sidebar { display: none; }
+.dash { display: flex; flex-direction: column; gap: 14px; }
+
+@media (min-width: 1024px) {
+  body { font-size: 15.5px; }
+  .app { max-width: none; margin: 0; padding: 0 36px 40px; padding-inline-start: calc(272px + 36px); }
+  main { max-width: 1320px; }
+
+  .sidebar {
+    display: flex; flex-direction: column; gap: 18px;
+    position: fixed; inset-block: 0; inset-inline-start: 0; width: 272px; z-index: 25;
+    padding: 24px 18px; background: linear-gradient(180deg, #0c1528, var(--card));
+    border-inline-end: 1px solid var(--line);
+  }
+  .side-brand { display: flex; align-items: center; gap: 12px; padding: 4px 6px 10px; border-bottom: 1px solid var(--line); }
+  .side-brand .logo { width: 46px; height: 46px; flex: none; border-radius: 14px; display: grid; place-items: center; color: var(--gold); border: 1px solid rgba(210, 173, 104, 0.6); background: var(--card); }
+  .side-brand b { display: block; font-size: 1.12rem; color: var(--gold-light); }
+  .side-brand small { display: block; color: var(--muted); font-size: 0.72rem; line-height: 1.3; }
+  .side-add { width: 100%; min-height: 48px; }
+  .side-nav { display: flex; flex-direction: column; gap: 4px; }
+  .side-nav button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid transparent; background: none; color: var(--muted); font-size: 0.98rem; text-align: start; }
+  .side-nav button:hover { background: var(--card-2); color: var(--text); }
+  .side-nav button[aria-current='page'] { background: var(--btn); color: var(--gold-light); border-color: var(--btn-border); font-weight: 700; }
+  .side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+  .side-foot small { word-break: break-all; }
+
+  .bottom-nav { display: none; }
+  .toast { bottom: 28px; }
+
+  /* Header: title and month side by side at the start; icons live in the sidebar. */
+  .topbar { grid-template-columns: 1fr; padding: 22px 0 18px; }
+  .topbar .icon-plain { display: none; }
+  .topbar .title { display: flex; align-items: baseline; gap: 18px; text-align: start; }
+  .topbar h1 { font-size: 1.7rem; }
+  .month-drop { font-size: 1rem; padding: 4px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--text); }
+
+  /* Home dashboard grid */
+  .dash {
+    display: grid; gap: 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: 'hero trio' 'chart recent' 'donut trend';
+  }
+  .a-hero { grid-area: hero; }
+  .a-trio { grid-area: trio; align-self: stretch; }
+  .a-trio .stat { display: flex; flex-direction: column; justify-content: space-between; }
+  .a-chart { grid-area: chart; }
+  .a-recent { grid-area: recent; }
+  .a-donut { grid-area: donut; }
+  .a-trend { grid-area: trend; }
+  .a-add { display: none; } /* the sidebar has "Add transaction" */
+  .hero .value { font-size: 2.6rem; }
+  .stat .value { font-size: 1.25rem; }
+  .chart-box { height: 280px; }
+
+  /* Expenses / family payments: cards in two columns */
+  .tx-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .pills { max-width: 640px; }
+  .stat-duo { max-width: 980px; }
+  .btn.wide { width: auto; min-width: 300px; align-self: flex-start; }
+
+  /* Reports */
+  .range { max-width: 640px; }
+  .report-head, .report-balances { max-width: none; }
+  .report-balances { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+  /* Settings: two columns */
+  .settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; }
+
+  /* Ledger table: roomier */
+  table.ledger { font-size: 0.93rem; }
+  table.ledger td, table.ledger th { padding: 12px 14px; }
+
+  /* Bottom sheets become centred dialogs */
+  .sheet-backdrop { align-items: center; padding: 32px; }
+  .sheet { border-radius: 20px; border-bottom: 1px solid var(--line); max-height: 88vh; padding: 18px 26px 26px; }
+  .sheet .grabber { display: none; }
+
+  /* Pointer niceties */
+  .tx-item:hover, .ledger-entry:hover, .card.a-recent .recent button:hover { border-color: var(--btn-border); }
+  .recent button:hover { background: rgba(210, 173, 104, 0.04); }
+}
+
+@media (min-width: 1440px) {
+  .tx-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
