@@ -6,7 +6,7 @@ import { filsToInput, parseKwdToFils } from '../../domain/money';
 import { createTransaction, defaultStatus, newId, updateTransaction, validStatuses, type TransactionInput } from '../../domain/transactions';
 import { INFLOW_PAYMENT_METHODS, OUTFLOW_PAYMENT_METHODS, type Category, type PaymentMethod, type RecordKind, type StoredStatus, type Transaction, type TransactionType } from '../../domain/types';
 import { useI18n } from '../../i18n/I18nProvider';
-import { monthLabel, translate } from '../../i18n/translate';
+import { monthLabel } from '../../i18n/translate';
 import { BottomSheet } from '../components/BottomSheet';
 import { Icon } from '../components/Icon';
 import { CategoryEditor } from './CategoryEditor';
@@ -39,11 +39,13 @@ export function TransactionForm({ existing, initialType = 'outflow', onClose, on
   const other: 'ar' | 'en' = lang === 'ar' ? 'en' : 'ar';
   const primaryOf = (tx?: Transaction) => (tx ? (lang === 'ar' ? tx.descriptionAr : tx.descriptionEn) ?? tx.description : '');
   const [description, setDescription] = useState(primaryOf(existing));
-  const [otherDescription, setOtherDescription] = useState((existing && (other === 'en' ? existing.descriptionEn : existing.descriptionAr)) ?? '');
+  // English description, notes and (for outflows) paid-to are no longer asked for in the form;
+  // an existing entry keeps whatever it already had in them.
+  const [otherDescription] = useState((existing && (other === 'en' ? existing.descriptionEn : existing.descriptionAr)) ?? '');
   const [counterparty, setCounterparty] = useState(existing?.counterparty ?? '');
   const [method, setMethod] = useState<PaymentMethod | ''>(existing?.paymentMethod ?? 'cash');
   const [status, setStatus] = useState<StoredStatus>(existing?.status ?? defaultStatus(initialType));
-  const [notes, setNotes] = useState(existing?.notes ?? '');
+  const [notes] = useState(existing?.notes ?? '');
   const [salaryMonth, setSalaryMonth] = useState(existing?.salaryMonth ?? monthKeyOf(today));
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -74,18 +76,8 @@ export function TransactionForm({ existing, initialType = 'outflow', onClose, on
 
   const recordKind: RecordKind = type === 'inflow' ? (categoryId === 'in-family' ? 'family' : 'general') : tab === 'salary' ? 'salary' : tab === 'maintenance' ? 'maintenance' : tab === 'groceries' ? 'groceries' : 'general';
 
-  const counterpartyLabel =
-    type === 'inflow'
-      ? categoryId === 'in-family'
-        ? t('add.familyMember')
-        : t('add.receivedFrom')
-      : tab === 'salary'
-        ? t('add.workerName')
-        : tab === 'maintenance'
-          ? t('add.vendor')
-          : tab === 'groceries'
-            ? t('add.shop')
-            : t('add.paidTo');
+  // Only inflows ask who the money came from (e.g. the family member).
+  const counterpartyLabel = categoryId === 'in-family' ? t('add.familyMember') : t('add.receivedFrom');
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -97,9 +89,9 @@ export function TransactionForm({ existing, initialType = 'outflow', onClose, on
     let primary = description.trim();
     let secondary = otherDescription.trim();
     if (recordKind === 'salary' && !primary) {
-      const name = counterparty.trim() || category.nameAr;
-      primary = translate(lang, 'add.salaryDescription', { name, month: monthLabel(lang, salaryMonth) });
-      if (!secondary) secondary = translate(other, 'add.salaryDescription', { name, month: monthLabel(other, salaryMonth) });
+      // No description typed for a salary: "رواتب — سبتمبر 2026" / "Salaries — September 2026".
+      primary = `${categoryName(category, lang)} — ${monthLabel(lang, salaryMonth)}`;
+      if (!secondary) secondary = `${categoryName(category, other)} — ${monthLabel(other, salaryMonth)}`;
     }
     if (!primary && !secondary) return setError(t('add.errors.description'));
     const input: TransactionInput = {
@@ -203,18 +195,14 @@ export function TransactionForm({ existing, initialType = 'outflow', onClose, on
           <span>{t('add.description')}</span>
           <input value={description} onChange={(e) => setDescription(e.target.value)} lang={lang} />
         </label>
-        <label className="field">
-          <span>
-            {t(other === 'en' ? 'add.descriptionEn' : 'add.descriptionAr')} ({t('common.optional')})
-          </span>
-          <input value={otherDescription} onChange={(e) => setOtherDescription(e.target.value)} lang={other} dir={other === 'ar' ? 'rtl' : 'ltr'} />
-        </label>
 
         <div className="form-grid">
-          <label className="field">
-            <span>{counterpartyLabel}</span>
-            <input value={counterparty} onChange={(e) => setCounterparty(e.target.value)} />
-          </label>
+          {type === 'inflow' && (
+            <label className="field">
+              <span>{counterpartyLabel}</span>
+              <input value={counterparty} onChange={(e) => setCounterparty(e.target.value)} />
+            </label>
+          )}
           <label className="field">
             <span>{t('add.paymentMethod')}</span>
             <select value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod | '')}>
@@ -238,11 +226,6 @@ export function TransactionForm({ existing, initialType = 'outflow', onClose, on
             ))}
           </div>
         </div>
-
-        <label className="field">
-          <span>{t('add.notes')}</span>
-          <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-        </label>
 
         {error && (
           <div className="warning" role="alert">
