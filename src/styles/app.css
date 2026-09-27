@@ -459,3 +459,4 @@ table.ledger td.actions-col { white-space: nowrap; }
 @media (min-width: 1440px) {
   .tx-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+@media print { .r-visual { break-before: page; } }

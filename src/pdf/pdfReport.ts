@@ -660,22 +660,11 @@ export async function renderReportPdf(model: ReportModel, fonts: ReportFonts): P
     drawRunningHeader(cv, model);
   };
 
-  // Page 1: header, summary cards, visual summary, then the ledger flows on.
+  // Page 1: header, summary cards, then the transaction details (ledger flows on over pages).
   cv.addPage();
   drawCoverHeader(cv, model);
   drawHeadlineCards(cv, model);
   drawBalanceCards(cv, model.balances);
-  const gap = 10;
-  const half = (CONTENT_W - gap) / 2;
-  const h1 = 150;
-  drawPeriodChart(cv, { start: MARGIN, top: cv.y, width: half, height: h1 }, model);
-  drawDonutChart(cv, { start: MARGIN + half + gap, top: cv.y, width: half, height: h1 }, model);
-  cv.y += h1 + gap;
-  const h2 = 104;
-  const wide = CONTENT_W * 0.62;
-  drawTrendChart(cv, { start: MARGIN, top: cv.y, width: wide, height: h2 }, model);
-  drawInOutChart(cv, { start: MARGIN + wide + gap, top: cv.y, width: CONTENT_W - wide - gap, height: h2 }, model);
-  cv.y += h2 + 16;
 
   // Consolidated summary (several months), then one ledger section per month with carried balances.
   if (model.sections.length > 1) {
@@ -687,6 +676,21 @@ export async function renderReportPdf(model: ReportModel, fonts: ReportFonts): P
   if (cv.y + 150 > bottomLimit()) newPage();
   sectionTitle(cv, model.labels.transactionsDetail, 12);
   model.sections.forEach((_, i) => drawLedgerSection(cv, model, i, newPage));
+
+  // Statistics and charts on their own page after the details.
+  newPage();
+  sectionTitle(cv, model.labels.visualSummary, 12);
+  const gap = 10;
+  const half = (CONTENT_W - gap) / 2;
+  const h1 = 190;
+  drawPeriodChart(cv, { start: MARGIN, top: cv.y, width: half, height: h1 }, model);
+  drawDonutChart(cv, { start: MARGIN + half + gap, top: cv.y, width: half, height: h1 }, model);
+  cv.y += h1 + gap;
+  const h2 = 150;
+  const wide = CONTENT_W * 0.62;
+  drawTrendChart(cv, { start: MARGIN, top: cv.y, width: wide, height: h2 }, model);
+  drawInOutChart(cv, { start: MARGIN + wide + gap, top: cv.y, width: CONTENT_W - wide - gap, height: h2 }, model);
+  cv.y += h2 + 16;
 
   drawFooters(cv, model);
   return doc.save({ useObjectStreams: false });

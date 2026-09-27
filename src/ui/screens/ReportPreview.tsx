@@ -199,41 +199,6 @@ export function ReportPreview({ model }: { model: ReportModel }) {
           ))}
         </div>
 
-        <div className="r-charts" style={{ marginTop: 12 }}>
-          <div className="r-chart">
-            <b>{model.labels.periodChart}</b>
-            <div className="r-legend">
-              <span>
-                <i style={{ background: '#1E9E5A' }} />
-                {model.labels.inflow}
-              </span>
-              <span>
-                <i style={{ background: '#D9534A' }} />
-                {model.labels.outflow}
-              </span>
-              {model.charts.monthly.some((m) => m.dueFils > 0) && (
-                <span>
-                  <i style={{ background: '#C98A12' }} />
-                  {model.labels.due}
-                </span>
-              )}
-            </div>
-            <PeriodBars model={model} />
-          </div>
-          <div className="r-chart">
-            <b>{model.labels.outflowByCategory}</b>
-            <Donut model={model} />
-          </div>
-          <div className="r-chart">
-            <b>{model.labels.balanceTrend}</b>
-            <Trend model={model} />
-          </div>
-          <div className="r-chart">
-            <b>{model.labels.inflowVsOutflow}</b>
-            <InOut model={model} />
-          </div>
-        </div>
-
         {model.sections.length > 1 && (
           <>
             <h4>{model.labels.consolidated}</h4>
@@ -322,6 +287,43 @@ export function ReportPreview({ model }: { model: ReportModel }) {
             </div>
           </section>
         ))}
+        <section className="r-visual">
+          <h4>{model.labels.visualSummary}</h4>
+          <div className="r-charts">
+            <div className="r-chart">
+              <b>{model.labels.periodChart}</b>
+              <div className="r-legend">
+                <span>
+                  <i style={{ background: '#1E9E5A' }} />
+                  {model.labels.inflow}
+                </span>
+                <span>
+                  <i style={{ background: '#D9534A' }} />
+                  {model.labels.outflow}
+                </span>
+                {model.charts.monthly.some((m) => m.dueFils > 0) && (
+                  <span>
+                    <i style={{ background: '#C98A12' }} />
+                    {model.labels.due}
+                  </span>
+                )}
+              </div>
+              <PeriodBars model={model} />
+            </div>
+            <div className="r-chart">
+              <b>{model.labels.outflowByCategory}</b>
+              <Donut model={model} />
+            </div>
+            <div className="r-chart">
+              <b>{model.labels.balanceTrend}</b>
+              <Trend model={model} />
+            </div>
+            <div className="r-chart">
+              <b>{model.labels.inflowVsOutflow}</b>
+              <InOut model={model} />
+            </div>
+          </div>
+        </section>
         <div className="r-foot">
           <span>
             {model.labels.issuedOn}: {model.generatedValue}
