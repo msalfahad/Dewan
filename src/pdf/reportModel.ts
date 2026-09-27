@@ -67,7 +67,7 @@ export interface ReportModel {
   summary: ReportStat[];
   /** Headline cards as in the design: total inflow, total outflow, net flow. */
   headline: (ReportStat & { icon: string })[];
-  /** Balance cards: opening, closing, unpaid commitments, balance after commitments. */
+  /** Balance cards: opening balance and balance after commitments. */
   balances: ReportStat[];
   tagline: string;
   labels: {
@@ -299,10 +299,9 @@ export function buildReportModel(input: ReportInput): ReportModel {
       { label: L('reports.totalOutflow'), value: money(language, period.outflowFils), tone: 'coral', icon: 'arrowIn' },
       { label: L('reports.netFlow'), value: money(language, period.inflowFils - period.outflowFils), tone: 'navy', icon: 'bars' },
     ],
+    // Closing balance and unpaid commitments were removed from the PDF cards at the owner's request.
     balances: [
       { label: L('reports.openingBalance'), value: money(language, period.openingFils), tone: 'navy' },
-      { label: L('reports.closingBalance'), value: money(language, period.closingFils), tone: 'navy' },
-      { label: L('reports.unpaidCommitments'), value: money(language, period.unpaidFils), tone: 'amber' },
       { label: L('reports.balanceAfterCommitments'), value: money(language, period.balanceAfterCommitmentsFils), tone: 'blue' },
     ],
     tagline: L('app.tagline'),
