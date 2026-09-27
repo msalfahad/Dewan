@@ -61,7 +61,7 @@ button { cursor: pointer; }
 
 /* ---------- Shell ---------- */
 .app { max-width: 1100px; margin-inline: auto; padding: 0 16px calc(var(--nav-h) + 26px + env(safe-area-inset-bottom)); }
-.topbar { position: sticky; top: 0; z-index: 20; display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; gap: 8px; padding: calc(10px + env(safe-area-inset-top)) 0 12px; background: linear-gradient(var(--bg) 75%, transparent); }
+.topbar { position: sticky; top: 0; z-index: 20; display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; gap: 8px; padding: calc(10px + env(safe-area-inset-top)) 0 12px; background: var(--bg); box-shadow: 0 10px 14px -6px var(--bg); }
 .topbar .title { text-align: center; min-width: 0; }
 .topbar h1 { margin: 0; font-size: 1.3rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar .icon-plain { justify-self: start; }
@@ -460,3 +460,21 @@ table.ledger td.actions-col { white-space: nowrap; }
   .tx-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media print { .r-visual { break-before: page; } }
+
+/* Floating add button: small, fixed at the bottom corner (left in Arabic, right in English). */
+.fab {
+  position: fixed; z-index: 35;
+  inset-inline-end: 16px;
+  bottom: calc(var(--nav-h) + 14px + env(safe-area-inset-bottom));
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 48px; padding: 0 18px 0 16px; border-radius: 999px; border: 0;
+  background: linear-gradient(135deg, var(--gold-light), var(--gold)); color: #0a1020;
+  font-weight: 700; font-size: 0.95rem;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(210, 173, 104, 0.35);
+}
+.fab:active { transform: scale(0.96); }
+/* Room under the last card so the button never covers it. */
+main:has(.fab) { padding-bottom: 72px; }
+@media (min-width: 1024px) {
+  .fab { bottom: 28px; inset-inline-end: 32px; }
+}

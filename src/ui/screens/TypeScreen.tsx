@@ -10,7 +10,7 @@ import { describe } from '../../domain/text';
 import type { EffectiveStatus, TransactionType } from '../../domain/types';
 import { useI18n } from '../../i18n/I18nProvider';
 import { CategoryIcon } from '../components/CategoryIcon';
-import { EmptyState, Money, Stat, StatusBadge } from '../components/common';
+import { EmptyState, Fab, Money, Stat, StatusBadge } from '../components/common';
 import { Icon } from '../components/Icon';
 import { RowActionButtons } from '../components/RowActions';
 
@@ -116,9 +116,7 @@ export function TypeScreen({ type, month, onOpen, onAdd }: { type: TransactionTy
         </div>
       )}
 
-      <button type="button" className="btn wide" onClick={onAdd}>
-        <Icon name="plusCircle" size={22} /> {t(isOut ? 'expenses.add' : 'family.add')}
-      </button>
+      <Fab label={t('nav.add')} title={t(isOut ? 'expenses.add' : 'family.add')} onClick={onAdd} />
     </div>
   );
 }
