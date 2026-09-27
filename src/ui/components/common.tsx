@@ -136,3 +136,16 @@ export function ConfirmPanel({ message, confirmLabel, onConfirm, onCancel, busy 
     </div>
   );
 }
+
+/**
+ * Small floating "+ إضافة" button pinned to the bottom corner above the navigation bar, so adding
+ * is always one tap away no matter how far down a long list the user has scrolled.
+ */
+export function Fab({ label, title, onClick }: { label: string; title: string; onClick: () => void }) {
+  return (
+    <button type="button" className="fab no-print" onClick={onClick} aria-label={title} title={title}>
+      <Icon name="plus" size={20} />
+      <span>{label}</span>
+    </button>
+  );
+}

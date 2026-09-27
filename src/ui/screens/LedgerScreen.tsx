@@ -4,7 +4,7 @@ import { filteredTotals, filterLedgerRows, isFilterActive, type LedgerFilter } f
 import { transactionsBeforeOpening, type LedgerRow } from '../../domain/ledger';
 import { translate } from '../../i18n/translate';
 import { useI18n } from '../../i18n/I18nProvider';
-import { EmptyState, Money } from '../components/common';
+import { EmptyState, Fab, Money } from '../components/common';
 import { Icon } from '../components/Icon';
 import { FilterPanel } from './FilterPanel';
 import { LedgerList, LedgerTable } from './LedgerViews';
@@ -88,9 +88,7 @@ export function LedgerScreen({ filter, onFilter, onOpen, onAdd }: { filter: Ledg
         </>
       )}
 
-      <button type="button" className="btn wide" onClick={onAdd}>
-        <Icon name="plusCircle" size={22} /> {t('home.addTransaction')}
-      </button>
+      <Fab label={t('nav.add')} title={t('home.addTransaction')} onClick={onAdd} />
     </div>
   );
 }
